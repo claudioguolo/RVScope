@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: rvscope_app
+    ports:
+      #- "8080:80"
+      - "8443:8443"
+    volumes:
+      - ./app:/srv/app:ro,Z
+      - ./.env:/var/www/html/.env:Z
+      - app_writable:/var/www/html/writable
+      - ./imports:/app/imports:Z
+      #certificados SSL
+      - ./certs:/etc/ssl/private:ro,Z
+    user: "0:0"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: rvscope_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: rvscope
+      POSTGRES_USER: rvscope
+      POSTGRES_PASSWORD: rvscope_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+volumes:
+  db_data:
+  app_writable:
