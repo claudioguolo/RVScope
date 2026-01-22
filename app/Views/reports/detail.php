@@ -60,9 +60,15 @@
                         <tbody>
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $info = $row['info'] ?? []; ?>
+                            <?php $isNew = !empty($newVmMap[$row['vm'] ?? '']); ?>
                             <tr>
                                 <td><?= esc((string) ($index + 1)) ?></td>
-                                <td><?= esc($row['vm'] ?? '') ?></td>
+                                <td>
+                                    <?= esc($row['vm'] ?? '') ?>
+                                    <?php if ($isNew): ?>
+                                        <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= esc($row['dns'] ?? '') ?></td>
                                 <td><?= esc($row['os'] ?? '') ?></td>
                                 <td><?= esc($row['creation'] ?? '') ?></td>
@@ -80,6 +86,7 @@
                                         data-mig="<?= esc($info['mig'] ?? '0', 'attr') ?>"
                                         data-app="<?= esc($info['app'] ?? '0', 'attr') ?>"
                                         data-creation="<?= esc($row['creation'] ?? '', 'attr') ?>"
+                                        data-annotation="<?= esc($row['annotation'] ?? '', 'attr') ?>"
                                     >Detalhes / Editar</button>
                                 </td>
                             </tr>
@@ -140,6 +147,9 @@
 
                 <label class="form-label mt-3">Criacao (dd/mm/aaaa)</label>
                 <input id="creation_date" name="creation_date" class="form-control" maxlength="10" placeholder="dd/mm/aaaa">
+
+                <label class="form-label mt-3">VCenter Notes</label>
+                <textarea id="annotation" class="form-control" rows="3" readonly></textarea>
             </div>
 
             <div class="modal-footer">
@@ -167,6 +177,7 @@ if (infoModal) {
     document.getElementById('migrable').checked = (button.getAttribute('data-mig') === '1');
     document.getElementById('appliance').checked = (button.getAttribute('data-app') === '1');
     document.getElementById('creation_date').value = button.getAttribute('data-creation') || '';
+    document.getElementById('annotation').value = button.getAttribute('data-annotation') || '';
   });
 }
 </script>

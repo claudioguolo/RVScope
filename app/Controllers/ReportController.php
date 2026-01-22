@@ -33,6 +33,15 @@ class ReportController extends Controller
             $grouped[$date]['total'] += (int) $row['vm_count'];
         }
 
+        $flags = $this->buildNewOsFlags(array_keys($grouped));
+        foreach ($grouped as $date => $day) {
+            $items = $day['items'];
+            foreach ($items as $index => $item) {
+                $items[$index]['has_new'] = isset($flags[$date][$item['os_name']]);
+            }
+            $grouped[$date]['items'] = $items;
+        }
+
         return view('reports/index', [
             'days' => array_values($grouped),
         ]);
@@ -83,8 +92,10 @@ class ReportController extends Controller
         }
 
         $rows = [];
+        $newVmMap = [];
         if ($error === null && $csvPath !== null) {
             $rows = $this->parseCsvRows($csvPath, $osName, $infoMap, $error);
+            $newVmMap = $this->findNewVmsForDate($date);
         }
 
         if ($error === null && $exportRequested) {
@@ -97,7 +108,191 @@ class ReportController extends Controller
             'rows' => $rows,
             'alert' => $alert,
             'error' => $error,
+            'newVmMap' => $newVmMap,
         ]);
+    }
+
+    private function buildNewOsFlags(array $dates): array
+    {
+        $flags = [];
+        if ($dates === []) {
+            return $flags;
+        }
+
+        $sortedDates = $dates;
+        sort($sortedDates, SORT_STRING);
+
+        $previousInventory = null;
+        foreach ($sortedDates as $date) {
+            $currentInventory = $this->loadInventoryForDate($date);
+            if ($currentInventory === null) {
+                continue;
+            }
+
+            if ($previousInventory !== null) {
+                foreach ($currentInventory as $vm => $os) {
+                    if (!isset($previousInventory[$vm])) {
+                        $flags[$date][$os] = true;
+                    }
+                }
+            }
+
+            $previousInventory = $currentInventory;
+        }
+
+        return $flags;
+    }
+
+    private function loadInventoryForDate(string $date): ?array
+    {
+        $csvPath = $this->findCsvPath($date);
+        if ($csvPath === null) {
+            return null;
+        }
+
+        $handle = fopen($csvPath, 'rb');
+        if ($handle === false) {
+            return null;
+        }
+
+        $header = fgetcsv($handle, 0, ';');
+        if ($header === false) {
+            fclose($handle);
+            return null;
+        }
+
+        $header = array_map([$this, 'normalizeHeaderValue'], $header);
+        $vmIndex = array_search('VM', $header, true);
+        $powerIndex = array_search('Powerstate', $header, true);
+        $osIndex = array_search('OS according to the VMware Tools', $header, true);
+
+        if ($vmIndex === false || $powerIndex === false || $osIndex === false) {
+            fclose($handle);
+            return null;
+        }
+
+        $inventory = [];
+        while (($row = fgetcsv($handle, 0, ';')) !== false) {
+            $power = trim((string) ($row[$powerIndex] ?? ''));
+            if ($power !== 'poweredOn') {
+                continue;
+            }
+
+            $os = trim((string) ($row[$osIndex] ?? ''));
+            if ($os === '' || strcasecmp($os, 'nan') === 0) {
+                continue;
+            }
+
+            if ($this->startsWithAny($os, ['Microsoft', 'VMware', 'Forti'])) {
+                continue;
+            }
+
+            $normalized = $this->normalizeInventoryOs($os);
+            if ($normalized === '') {
+                continue;
+            }
+
+            $vm = trim((string) ($row[$vmIndex] ?? ''));
+            if ($vm === '') {
+                continue;
+            }
+
+            if (!isset($inventory[$vm])) {
+                $inventory[$vm] = $normalized;
+            }
+        }
+
+        fclose($handle);
+
+        return $inventory;
+    }
+
+    private function normalizeInventoryOs(string $os): string
+    {
+        if ($this->startsWith($os, 'CentOS')) {
+            return 'CentOS';
+        }
+
+        if (
+            $this->startsWith($os, 'Other')
+            || $this->startsWith($os, 'SUSE ')
+            || $this->startsWith($os, 'FreeB')
+        ) {
+            return 'Other';
+        }
+
+        $clean = str_replace(' (64-bit)', '', $os);
+        $clean = trim($clean);
+
+        $config = config('Rvtools');
+        $maxLength = $config instanceof RvtoolsConfig ? $config->osMaxLength : 26;
+        if (strlen($clean) > $maxLength) {
+            $clean = substr($clean, 0, $maxLength);
+        }
+
+        return $clean;
+    }
+
+    private function startsWith(string $value, string $prefix): bool
+    {
+        return strncmp($value, $prefix, strlen($prefix)) === 0;
+    }
+
+    private function startsWithAny(string $value, array $prefixes): bool
+    {
+        foreach ($prefixes as $prefix) {
+            if ($this->startsWith($value, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function findNewVmsForDate(string $date): array
+    {
+        $sortedDates = array_keys($this->groupAvailableDates());
+        sort($sortedDates, SORT_STRING);
+
+        $previous = null;
+        foreach ($sortedDates as $currentDate) {
+            $inventory = $this->loadInventoryForDate($currentDate);
+            if ($inventory === null) {
+                continue;
+            }
+
+            if ($currentDate === $date) {
+                if ($previous === null) {
+                    return [];
+                }
+
+                $newMap = [];
+                foreach ($inventory as $vm => $os) {
+                    if (!isset($previous[$vm])) {
+                        $newMap[$vm] = true;
+                    }
+                }
+                return $newMap;
+            }
+
+            $previous = $inventory;
+        }
+
+        return [];
+    }
+
+    private function groupAvailableDates(): array
+    {
+        $model = new RvtoolsOsSummaryModel();
+        $rows = $model->select('reference_date')->groupBy('reference_date')->findAll();
+        $dates = [];
+        foreach ($rows as $row) {
+            $date = $row['reference_date'] ?? null;
+            if ($date) {
+                $dates[$date] = true;
+            }
+        }
+        return $dates;
     }
 
     private function handleSave(HostInfoModel $infoModel): array
@@ -234,6 +429,7 @@ class ReportController extends Controller
         $idxDNS = $index['DNS Name'] ?? null;
         $idxOS = $index['OS according to the VMware Tools'] ?? null;
         $idxCD = $index['Creation date'] ?? null;
+        $idxAN = $index['Annotation'] ?? null;
 
         if ($idxVM === null || $idxPS === null || $idxDNS === null || $idxOS === null) {
             fclose($handle);
@@ -255,6 +451,11 @@ class ReportController extends Controller
             $vm = (string) ($line[$idxVM] ?? '');
             $dns = (string) ($line[$idxDNS] ?? '');
             $creationRaw = $idxCD !== null ? (string) ($line[$idxCD] ?? '') : '';
+            $annotation = $idxAN !== null ? trim((string) ($line[$idxAN] ?? '')) : '';
+
+            $vm = $this->sanitizeUtf8($vm);
+            $dns = $this->sanitizeUtf8($dns);
+            $annotation = $this->sanitizeUtf8($annotation);
 
             $info = $infoMap[$vm] ?? $this->defaultInfo();
             $creation = $this->resolveCreationDate($vm, $creationRaw, $infoMap);
@@ -264,6 +465,7 @@ class ReportController extends Controller
                 'dns' => $dns,
                 'os' => $osValue,
                 'creation' => $creation,
+                'annotation' => $annotation,
                 'info' => $info,
             ];
         }
@@ -373,6 +575,33 @@ class ReportController extends Controller
         }
 
         return preg_replace('/^\xEF\xBB\xBF/', '', $value);
+    }
+
+    private function sanitizeUtf8(string $value): string
+    {
+        if ($value == '') {
+            return $value;
+        }
+
+        if (function_exists('mb_check_encoding') && mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252');
+            if ($converted !== false && $converted !== '') {
+                return $converted;
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $converted = @iconv('Windows-1252', 'UTF-8//IGNORE', $value);
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+
+        return $value;
     }
 
     private function defaultInfo(): array
