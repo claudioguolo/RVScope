@@ -19,6 +19,7 @@ RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/php/apache.conf /etc/apache2/conf-available/ci4.conf
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-custom.ini
 RUN a2enconf ci4
 
 
