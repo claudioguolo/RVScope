@@ -6,6 +6,7 @@ RUN apt-get update \
         unzip \
         libpq-dev \
         libicu-dev \
+        postgresql-client \
     && docker-php-ext-install pdo_pgsql pgsql intl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

@@ -14,7 +14,6 @@ services:
       - ./imports:/app/imports:Z
       #certificados SSL
       - ./certs:/etc/ssl/private:ro,Z
-    user: "0:0"
     depends_on:
       - db
 
