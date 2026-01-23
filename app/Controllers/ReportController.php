@@ -29,7 +29,7 @@ class ReportController extends Controller
                 ];
             }
 
-            $row['has_new'] = (bool) ($row['has_new'] ?? false);
+            $row['has_new'] = $this->normalizeBool($row['has_new'] ?? false);
             $grouped[$date]['items'][] = $row;
             $grouped[$date]['total'] += (int) $row['vm_count'];
         }
@@ -133,6 +133,24 @@ class ReportController extends Controller
         }
 
         return $map;
+    }
+
+    private function normalizeBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            return in_array($normalized, ['1', 't', 'true', 'yes', 'y'], true);
+        }
+
+        return false;
     }
 
     private function findPreviousDate(string $date): ?string
