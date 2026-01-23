@@ -1,58 +1,78 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-usage() {
-  cat <<'EOF'
-Usage: import_hosts_info.sh [--no-truncate] [SQLITE_DB]
-
-Imports hosts_info from a SQLite db into the Postgres hosts_info table.
-Default SQLite path: ../hosts_info.db (relative to this script)
-EOF
-}
-
-truncate=1
-sqlite_db=""
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --no-truncate)
-      truncate=0
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      sqlite_db="$1"
-      shift
-      ;;
-  esac
-done
-
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-root_dir="$(cd -- "${script_dir}/.." && pwd)"
-sqlite_db="${sqlite_db:-${root_dir}/hosts_info.db}"
-
-if [[ ! -f "$sqlite_db" ]]; then
-  echo "SQLite database not found: $sqlite_db" >&2
+SQLITE_PATH="${1:-}"
+if [ -z "$SQLITE_PATH" ]; then
+  echo "Uso: $0 /caminho/hosts_info.db" >&2
   exit 1
 fi
 
-if ! command -v sqlite3 >/dev/null 2>&1; then
-  echo "sqlite3 is required on the host to run this import." >&2
+if [ ! -f "$SQLITE_PATH" ]; then
+  echo "Arquivo nao encontrado: $SQLITE_PATH" >&2
   exit 1
 fi
 
-compose=(docker compose -f "${root_dir}/docker-compose.yaml")
+PG_DB="${PG_DB:-rvscope}"
+PG_USER="${PG_USER:-rvscope}"
 
-if [[ "$truncate" -eq 1 ]]; then
-  "${compose[@]}" exec -T db psql -U rvscope -d db_rvscope -c "TRUNCATE TABLE hosts_info;"
-fi
+TMP_DB="$(mktemp)"
+trap 'rm -f "$TMP_DB"' EXIT
+cp "$SQLITE_PATH" "$TMP_DB"
 
-sqlite3 -header -csv "$sqlite_db" \
-  "select vm, desc, owner, conv, leg, mig, app, creation_date, updated_at from hosts_info;" \
-  | "${compose[@]}" exec -T db psql -U rvscope -d db_rvscope \
-      -c "\copy hosts_info (vm, desc, owner, conv, leg, mig, app, creation_date, updated_at) FROM STDIN WITH (FORMAT csv, HEADER true)"
+python - <<'PY' "$TMP_DB" \
+| docker compose exec -T db psql -U "$PG_USER" -d "$PG_DB"
+import sqlite3
+import sys
 
-"${compose[@]}" exec -T db psql -U rvscope -d db_rvscope -c "select count(*) from hosts_info;"
+path = sys.argv[1]
+
+conn = sqlite3.connect(path)
+conn.row_factory = sqlite3.Row
+conn.text_factory = lambda b: b.decode('utf-8', 'replace')
+
+rows = conn.execute(
+    "SELECT vm, \"desc\", owner, conv, leg, mig, app, creation_date, updated_at FROM hosts_info"
+).fetchall()
+
+def esc(value):
+    if value is None:
+        return 'NULL'
+    if isinstance(value, (int, float)):
+        return str(int(value))
+    s = str(value)
+    s = s.replace("'", "''")
+    return "'" + s + "'"
+
+print('BEGIN;')
+print('-- Migracao hosts_info (SQLite -> Postgres)')
+
+for row in rows:
+    vm = esc(row['vm'])
+    desc = esc(row['desc'])
+    owner = esc(row['owner'])
+    conv = esc(row['conv'])
+    leg = esc(row['leg'])
+    mig = esc(row['mig'])
+    app = esc(row['app'])
+    creation_date = esc(row['creation_date'])
+    updated_at = esc(row['updated_at'])
+
+    print(
+        'INSERT INTO hosts_info (vm, "desc", owner, conv, leg, mig, app, creation_date, updated_at) VALUES ('
+        f"{vm}, {desc}, {owner}, {conv}, {leg}, {mig}, {app}, {creation_date}, {updated_at}"
+        ')\n'
+        'ON CONFLICT (vm) DO UPDATE SET '
+        '"desc" = EXCLUDED."desc", '
+        'owner = EXCLUDED.owner, '
+        'conv = EXCLUDED.conv, '
+        'leg = EXCLUDED.leg, '
+        'mig = EXCLUDED.mig, '
+        'app = EXCLUDED.app, '
+        'creation_date = EXCLUDED.creation_date, '
+        'updated_at = EXCLUDED.updated_at;'
+    )
+
+print('COMMIT;')
+PY
+
+echo "Importacao concluida."
