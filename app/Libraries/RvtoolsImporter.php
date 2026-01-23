@@ -29,6 +29,11 @@ class RvtoolsImporter
 
     public function importAll(): array
     {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
+
         if (!is_dir($this->importPath)) {
             return [
                 'import_path' => $this->importPath,
