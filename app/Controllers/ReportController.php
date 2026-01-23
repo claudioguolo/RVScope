@@ -29,17 +29,9 @@ class ReportController extends Controller
                 ];
             }
 
+            $row['has_new'] = (bool) ($row['has_new'] ?? false);
             $grouped[$date]['items'][] = $row;
             $grouped[$date]['total'] += (int) $row['vm_count'];
-        }
-
-        $flags = $this->buildNewOsFlags(array_keys($grouped));
-        foreach ($grouped as $date => $day) {
-            $items = $day['items'];
-            foreach ($items as $index => $item) {
-                $items[$index]['has_new'] = isset($flags[$date][$item['os_name']]);
-            }
-            $grouped[$date]['items'] = $items;
         }
 
         return view('reports/index', [
@@ -95,7 +87,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null && $csvPath !== null) {
             $rows = $this->parseCsvRows($csvPath, $osName, $infoMap, $error);
-            $newVmMap = $this->findNewVmsForDate($date);
+            $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
         if ($error === null && $exportRequested) {
@@ -112,187 +104,47 @@ class ReportController extends Controller
         ]);
     }
 
-    private function buildNewOsFlags(array $dates): array
+    private function findNewVmsForDateFromDb(string $date): array
     {
-        $flags = [];
-        if ($dates === []) {
-            return $flags;
+        $previousDate = $this->findPreviousDate($date);
+        if ($previousDate === null) {
+            return [];
         }
 
-        $sortedDates = $dates;
-        sort($sortedDates, SORT_STRING);
+        $db = db_connect();
+        $builder = $db->table('rvtools_vm_inventory as cur');
+        $builder->select('cur.vm');
+        $builder->join(
+            'rvtools_vm_inventory as prev',
+            'prev.vm = cur.vm AND prev.reference_date = ' . $db->escape($previousDate),
+            'left',
+            false
+        );
+        $builder->where('cur.reference_date', $date);
+        $builder->where('prev.vm IS NULL', null, false);
 
-        $previousInventory = null;
-        foreach ($sortedDates as $date) {
-            $currentInventory = $this->loadInventoryForDate($date);
-            if ($currentInventory === null) {
-                continue;
+        $rows = $builder->get()->getResultArray();
+        $map = [];
+        foreach ($rows as $row) {
+            $vm = $row['vm'] ?? '';
+            if ($vm !== '') {
+                $map[$vm] = true;
             }
-
-            if ($previousInventory !== null) {
-                foreach ($currentInventory as $vm => $os) {
-                    if (!isset($previousInventory[$vm])) {
-                        $flags[$date][$os] = true;
-                    }
-                }
-            }
-
-            $previousInventory = $currentInventory;
         }
 
-        return $flags;
+        return $map;
     }
 
-    private function loadInventoryForDate(string $date): ?array
-    {
-        $csvPath = $this->findCsvPath($date);
-        if ($csvPath === null) {
-            return null;
-        }
-
-        $handle = fopen($csvPath, 'rb');
-        if ($handle === false) {
-            return null;
-        }
-
-        $header = fgetcsv($handle, 0, ';');
-        if ($header === false) {
-            fclose($handle);
-            return null;
-        }
-
-        $header = array_map([$this, 'normalizeHeaderValue'], $header);
-        $vmIndex = array_search('VM', $header, true);
-        $powerIndex = array_search('Powerstate', $header, true);
-        $osIndex = array_search('OS according to the VMware Tools', $header, true);
-
-        if ($vmIndex === false || $powerIndex === false || $osIndex === false) {
-            fclose($handle);
-            return null;
-        }
-
-        $inventory = [];
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
-            $power = trim((string) ($row[$powerIndex] ?? ''));
-            if ($power !== 'poweredOn') {
-                continue;
-            }
-
-            $os = trim((string) ($row[$osIndex] ?? ''));
-            if ($os === '' || strcasecmp($os, 'nan') === 0) {
-                continue;
-            }
-
-            if ($this->startsWithAny($os, ['Microsoft', 'VMware', 'Forti'])) {
-                continue;
-            }
-
-            $normalized = $this->normalizeInventoryOs($os);
-            if ($normalized === '') {
-                continue;
-            }
-
-            $vm = trim((string) ($row[$vmIndex] ?? ''));
-            if ($vm === '') {
-                continue;
-            }
-
-            if (!isset($inventory[$vm])) {
-                $inventory[$vm] = $normalized;
-            }
-        }
-
-        fclose($handle);
-
-        return $inventory;
-    }
-
-    private function normalizeInventoryOs(string $os): string
-    {
-        if ($this->startsWith($os, 'CentOS')) {
-            return 'CentOS';
-        }
-
-        if (
-            $this->startsWith($os, 'Other')
-            || $this->startsWith($os, 'SUSE ')
-            || $this->startsWith($os, 'FreeB')
-        ) {
-            return 'Other';
-        }
-
-        $clean = str_replace(' (64-bit)', '', $os);
-        $clean = trim($clean);
-
-        $config = config('Rvtools');
-        $maxLength = $config instanceof RvtoolsConfig ? $config->osMaxLength : 26;
-        if (strlen($clean) > $maxLength) {
-            $clean = substr($clean, 0, $maxLength);
-        }
-
-        return $clean;
-    }
-
-    private function startsWith(string $value, string $prefix): bool
-    {
-        return strncmp($value, $prefix, strlen($prefix)) === 0;
-    }
-
-    private function startsWithAny(string $value, array $prefixes): bool
-    {
-        foreach ($prefixes as $prefix) {
-            if ($this->startsWith($value, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function findNewVmsForDate(string $date): array
-    {
-        $sortedDates = array_keys($this->groupAvailableDates());
-        sort($sortedDates, SORT_STRING);
-
-        $previous = null;
-        foreach ($sortedDates as $currentDate) {
-            $inventory = $this->loadInventoryForDate($currentDate);
-            if ($inventory === null) {
-                continue;
-            }
-
-            if ($currentDate === $date) {
-                if ($previous === null) {
-                    return [];
-                }
-
-                $newMap = [];
-                foreach ($inventory as $vm => $os) {
-                    if (!isset($previous[$vm])) {
-                        $newMap[$vm] = true;
-                    }
-                }
-                return $newMap;
-            }
-
-            $previous = $inventory;
-        }
-
-        return [];
-    }
-
-    private function groupAvailableDates(): array
+    private function findPreviousDate(string $date): ?string
     {
         $model = new RvtoolsOsSummaryModel();
-        $rows = $model->select('reference_date')->groupBy('reference_date')->findAll();
-        $dates = [];
-        foreach ($rows as $row) {
-            $date = $row['reference_date'] ?? null;
-            if ($date) {
-                $dates[$date] = true;
-            }
-        }
-        return $dates;
+        $row = $model->select('reference_date')
+            ->where('reference_date <', $date)
+            ->orderBy('reference_date', 'DESC')
+            ->first();
+
+        $previous = $row['reference_date'] ?? null;
+        return $previous ?: null;
     }
 
     private function handleSave(HostInfoModel $infoModel): array
