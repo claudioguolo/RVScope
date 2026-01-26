@@ -176,6 +176,11 @@ class ReportController extends Controller
         $owner = trim((string) ($this->request->getPost('owner') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
+        $worker = strtolower(trim((string) ($this->request->getPost('worker') ?? 'none')));
+        $allowedWorkers = ['none', 'openshift', 'rancher'];
+        if (! in_array($worker, $allowedWorkers, true)) {
+            $worker = 'none';
+        }
 
         $desc = str_replace(';', ',', $desc);
         $owner = str_replace(';', ',', $owner);
@@ -197,6 +202,7 @@ class ReportController extends Controller
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
             'mig' => $this->request->getPost('migrable') ? 1 : 0,
             'app' => $this->request->getPost('appliance') ? 1 : 0,
+            'worker' => $worker,
             'creation_date' => $creationDate,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
@@ -212,7 +218,7 @@ class ReportController extends Controller
 
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
-        $rows = $infoModel->select('vm, desc, owner, conv, leg, mig, app, creation_date')
+        $rows = $infoModel->select('vm, desc, owner, conv, leg, mig, app, worker, creation_date')
             ->findAll();
 
         $map = [];
@@ -228,6 +234,7 @@ class ReportController extends Controller
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
                 'mig' => ((int) ($row['mig'] ?? 0)) ? '1' : '0',
                 'app' => ((int) ($row['app'] ?? 0)) ? '1' : '0',
+                'worker' => $row['worker'] ?? 'none',
                 'creation_date' => trim((string) ($row['creation_date'] ?? '')),
             ];
         }
@@ -483,7 +490,9 @@ class ReportController extends Controller
             'leg' => '0',
             'mig' => '0',
             'app' => '0',
+            'worker' => 'none',
             'creation_date' => '',
         ];
     }
+
 }

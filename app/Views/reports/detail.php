@@ -65,6 +65,11 @@
                                 <td><?= esc((string) ($index + 1)) ?></td>
                                 <td>
                                     <?= esc($row['vm'] ?? '') ?>
+                                    <?php if (($info['worker'] ?? 'none') === 'rancher'): ?>
+                                        <span class="small ms-2 text-primary-emphasis" style="opacity:0.65">Rancher</span>
+                                    <?php elseif (($info['worker'] ?? 'none') === 'openshift'): ?>
+                                        <span class="small ms-2 text-danger-emphasis" style="opacity:0.65">OpenShift</span>
+                                    <?php endif; ?>
                                     <?php if ($isNew): ?>
                                         <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
                                     <?php endif; ?>
@@ -85,6 +90,7 @@
                                         data-leg="<?= esc($info['leg'] ?? '0', 'attr') ?>"
                                         data-mig="<?= esc($info['mig'] ?? '0', 'attr') ?>"
                                         data-app="<?= esc($info['app'] ?? '0', 'attr') ?>"
+                                        data-worker="<?= esc($info['worker'] ?? 'none', 'attr') ?>"
                                         data-creation="<?= esc($row['creation'] ?? '', 'attr') ?>"
                                         data-annotation="<?= esc($row['annotation'] ?? '', 'attr') ?>"
                                     >Detalhes / Editar</button>
@@ -145,6 +151,13 @@
                     </div>
                 </div>
 
+                <label class="form-label mt-3" for="worker">Worker</label>
+                <select id="worker" name="worker" class="form-select">
+                    <option value="none">Nenhum</option>
+                    <option value="openshift">OpenShift</option>
+                    <option value="rancher">Rancher</option>
+                </select>
+
                 <label class="form-label mt-3">Criacao (dd/mm/aaaa)</label>
                 <input id="creation_date" name="creation_date" class="form-control" maxlength="10" placeholder="dd/mm/aaaa">
 
@@ -176,6 +189,7 @@ if (infoModal) {
     document.getElementById('legacy').checked = (button.getAttribute('data-leg') === '1');
     document.getElementById('migrable').checked = (button.getAttribute('data-mig') === '1');
     document.getElementById('appliance').checked = (button.getAttribute('data-app') === '1');
+    document.getElementById('worker').value = button.getAttribute('data-worker') || 'none';
     document.getElementById('creation_date').value = button.getAttribute('data-creation') || '';
     document.getElementById('annotation').value = button.getAttribute('data-annotation') || '';
   });

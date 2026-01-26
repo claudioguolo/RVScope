@@ -20,6 +20,7 @@ class HostInfoModel extends Model
         'leg',
         'mig',
         'app',
+        'worker',
         'creation_date',
         'updated_at',
     ];
