@@ -368,6 +368,7 @@ class ReportController extends Controller
             'Legado',
             "Migr\xc3\xa1vel",
             'Appliance',
+            'Worker',
         ], ';');
 
         $counter = 1;
@@ -385,6 +386,7 @@ class ReportController extends Controller
                 $info['leg'] ?? '0',
                 $info['mig'] ?? '0',
                 $info['app'] ?? '0',
+                $info['worker'] ?? 'none',
             ], ';');
         }
 
