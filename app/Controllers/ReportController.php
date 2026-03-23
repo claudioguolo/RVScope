@@ -128,6 +128,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null && $csvPath !== null) {
             $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
+            $rows = $this->filterRowsByInventoryDate($rows, $date);
             $rows = $this->filterRowsByGerencia($rows, $gerencia);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
@@ -387,6 +388,46 @@ class ReportController extends Controller
         foreach ($rows as $row) {
             $isAppliance = (int) (($row['info']['app'] ?? '0')) === 1;
             if ($isAppliance) {
+                $filtered[] = $row;
+            }
+        }
+
+        return $filtered;
+    }
+
+    private function filterRowsByInventoryDate(array $rows, string $date): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $db = db_connect();
+        $inventoryRows = $db->table('rvtools_vm_inventory')
+            ->select('vm')
+            ->where('reference_date', $date)
+            ->get()
+            ->getResultArray();
+
+        if ($inventoryRows === []) {
+            return [];
+        }
+
+        $allowed = [];
+        foreach ($inventoryRows as $row) {
+            $vm = trim((string) ($row['vm'] ?? ''));
+            if ($vm !== '') {
+                $allowed[$vm] = true;
+            }
+        }
+
+        if ($allowed === []) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ($rows as $row) {
+            $vm = trim((string) ($row['vm'] ?? ''));
+            if ($vm !== '' && isset($allowed[$vm])) {
                 $filtered[] = $row;
             }
         }

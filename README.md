@@ -40,6 +40,63 @@ docker compose up -d
 docker compose exec app php /var/www/html/spark migrate
 ```
 
+## Atualização em Produção (GitHub -> Servidor)
+Diretório de produção: `/dados/sistemas/rvscope`
+
+### 1. Acessar o servidor e entrar na pasta da aplicação
+```bash
+ssh <usuario>@<servidor>
+cd /dados/sistemas/rvscope
+```
+
+### 2. Gerar backup do banco de dados
+Comando utilizado em produção:
+```bash
+docker compose exec -T db pg_dump -U rvscope rvscope_db | gzip > ../backups/rvscope_$(date +%F_%H%M%S).sql.gz
+```
+
+Opcional: validar se o backup foi criado:
+```bash
+ls -lh ../backups | tail -n 5
+```
+
+### 3. Baixar as atualizações do GitHub
+```bash
+git fetch --all
+git checkout main
+git pull origin main
+```
+
+### 4. Aplicar atualização da aplicação
+Para mudanças apenas de código PHP/views/routes:
+```bash
+docker compose restart app
+```
+
+Se houver mudança em `Dockerfile` ou `docker-compose.yaml`:
+```bash
+docker compose up -d --build app
+```
+
+### 5. Validar o deploy
+```bash
+docker compose ps
+docker compose logs -f --tail=100 app
+```
+
+### 6. Validar migrations (se necessário)
+O `entrypoint` do container `app` já executa migrations na inicialização.
+
+Para conferir status manualmente:
+```bash
+docker compose exec app php /var/www/html/spark migrate:status
+```
+
+Para forçar execução:
+```bash
+docker compose exec app php /var/www/html/spark migrate --all
+```
+
 ## Importação de CSVs
 Coloque os arquivos em `imports/` com o padrão:
 ```
