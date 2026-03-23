@@ -3,20 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RVScope | Detalhe</title>
+    <title>RVScope | Detalhe por Gerência</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" href="<?= base_url('favicon.svg') ?>">
     <meta name="application-name" content="RVScope">
-    <meta name="description" content="RVScope - Detalhe diario por VM e anotacoes.">
+    <meta name="description" content="RVScope - Detalhe diario por VM e gerencia.">
     <?= view('reports/_theme') ?>
 </head>
 <body>
 <div class="container py-4">
     <?= view('reports/_topbar', [
-        'subtitle' => 'Detalhe diario por VM e anotacoes.',
-        'activeMenu' => 'inicio',
+        'subtitle' => 'Detalhe diario por VM e gerencia.',
+        'activeMenu' => 'relatorios',
+        'activeSubmenu' => 'vm-gerencia',
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
+            ['label' => 'Relatórios'],
+            ['label' => 'VM por Gerência', 'url' => site_url('reports/vm-por-gerencia')],
             ['label' => 'Detalhes', 'active' => true],
         ],
     ]) ?>
@@ -32,12 +35,12 @@
     <?php else: ?>
         <div class="app-card p-3">
             <h5 class="mb-3">
-                Data: <?= esc($date) ?> - SO: <?= $osName !== '' ? esc($osName) : 'Todos' ?>
+                Data: <?= esc($date) ?> - Gerência: <?= esc($gerencia) ?>
             </h5>
 
             <form method="post" class="mb-3">
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
-                <input type="hidden" name="os" value="<?= esc($osName, 'attr') ?>">
+                <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
                 <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
             </form>
 
@@ -118,7 +121,7 @@
             <div class="modal-body">
                 <input type="hidden" name="save_info" value="1">
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
-                <input type="hidden" name="os" value="<?= esc($osName, 'attr') ?>">
+                <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
 
                 <label class="form-label">Name VMWare</label>
                 <input id="vm" name="vm" class="form-control" readonly>
@@ -127,7 +130,7 @@
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
 
                 <label class="form-label mt-2">Gerencia</label>
-                <select id="gerencia" name="gerencia" class="form-select">
+                <select id="gerenciaSelect" name="gerencia" class="form-select">
                     <option value="Sem registro">Sem registro</option>
                     <option value="Administração de Banco de Dados">Administração de Banco de Dados</option>
                     <option value="Ativos">Ativos</option>
@@ -196,7 +199,7 @@ if (infoModal) {
     }
     document.getElementById('vm').value = button.getAttribute('data-vm') || '';
     document.getElementById('desc').value = button.getAttribute('data-desc') || '';
-    const gerenciaEl = document.getElementById('gerencia');
+    const gerenciaEl = document.getElementById('gerenciaSelect');
     const gerenciaValue = button.getAttribute('data-gerencia') || 'Sem registro';
     gerenciaEl.value = gerenciaValue;
     if (gerenciaEl.value !== gerenciaValue) {

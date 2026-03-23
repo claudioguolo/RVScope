@@ -15,6 +15,7 @@ class HostInfoModel extends Model
     protected $allowedFields = [
         'vm',
         'desc',
+        'gerencia',
         'owner',
         'conv',
         'leg',

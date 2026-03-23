@@ -19,6 +19,10 @@ $routes->setAutoRoute(false);
 
 $routes->get('/', 'ReportController::index');
 $routes->get('reports', 'ReportController::index');
+$routes->get('reports/vm-por-gerencia', 'ReportController::vmPorGerencia');
+$routes->match(['GET', 'POST'], 'reports/vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail');
+$routes->get('reports/appliances', 'ReportController::appliances');
+$routes->match(['GET', 'POST'], 'reports/appliances/detail', 'ReportController::appliancesDetail');
 $routes->match(['GET', 'POST'], 'reports/detail', 'ReportController::detail');
 $routes->get('import', 'ImportController::index');
 

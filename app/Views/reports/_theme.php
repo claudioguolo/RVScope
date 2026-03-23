@@ -39,6 +39,60 @@
         box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
     }
 
+    .app-menu-nav .nav-link {
+        color: var(--brand-dark);
+        font-weight: 600;
+        border-radius: 10px;
+        padding: 8px 12px;
+    }
+
+    .app-menu-nav .nav-link.active {
+        background: rgba(22, 99, 121, 0.12);
+        color: var(--brand-dark);
+    }
+
+    .app-menu-dropdown {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .app-menu-dropdown .dropdown-item {
+        font-weight: 600;
+        color: var(--brand-dark);
+    }
+
+    .app-menu-dropdown .dropdown-item.active,
+    .app-menu-dropdown .dropdown-item:active {
+        background: rgba(22, 99, 121, 0.12);
+        color: var(--brand-dark);
+    }
+
+    .app-breadcrumb {
+        --bs-breadcrumb-divider: ">";
+        margin: 0;
+    }
+
+    .app-breadcrumb .breadcrumb-item {
+        color: #64748b;
+        font-size: 0.95rem;
+    }
+
+    .app-breadcrumb .breadcrumb-item a {
+        color: #64748b;
+        text-decoration: none;
+    }
+
+    .app-breadcrumb .breadcrumb-item a:hover {
+        color: var(--brand-dark);
+        text-decoration: underline;
+    }
+
+    .app-breadcrumb .breadcrumb-item.active {
+        color: var(--brand-dark);
+        font-weight: 600;
+    }
+
     .btn-brand {
         background: var(--brand);
         border-color: var(--brand);

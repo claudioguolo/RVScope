@@ -39,6 +39,221 @@ class ReportController extends Controller
         ]);
     }
 
+    public function vmPorGerencia()
+    {
+        $db = db_connect();
+        $rows = $db->query(
+            "SELECT inv.reference_date,
+                    COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                    COUNT(*) AS vm_count
+             FROM rvtools_vm_inventory inv
+             LEFT JOIN hosts_info info ON info.vm = inv.vm
+             GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+             ORDER BY inv.reference_date DESC, gerencia ASC"
+        )->getResultArray();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $date = $row['reference_date'];
+            if (!isset($grouped[$date])) {
+                $grouped[$date] = [
+                    'reference_date' => $date,
+                    'items' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $row['vm_count'] = (int) ($row['vm_count'] ?? 0);
+            $grouped[$date]['items'][] = $row;
+            $grouped[$date]['total'] += $row['vm_count'];
+        }
+
+        return view('reports/by_gerencia', [
+            'days' => array_values($grouped),
+        ]);
+    }
+
+    public function vmPorGerenciaDetail()
+    {
+        $date = trim((string) ($this->request->getGet('date') ?? ''));
+        if ($date === '') {
+            $date = trim((string) ($this->request->getPost('date') ?? ''));
+        }
+
+        $gerencia = trim((string) ($this->request->getGet('gerencia') ?? ''));
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia_filter') ?? ''));
+        }
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
+        }
+
+        $alert = null;
+        $error = null;
+
+        $infoModel = new HostInfoModel();
+        $infoMap = $this->loadInfoMap($infoModel);
+
+        $method = strtoupper($this->request->getMethod());
+        $saveRequested = $method === 'POST' && $this->request->getPost('save_info') !== null;
+        $exportRequested = $method === 'POST' && $this->request->getPost('export') !== null;
+
+        if ($saveRequested) {
+            $saveResult = $this->handleSave($infoModel);
+            if ($saveResult['success']) {
+                $alert = ['type' => 'success', 'message' => 'Salvo com sucesso!'];
+                $infoMap = $this->loadInfoMap($infoModel);
+            } else {
+                $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
+            }
+        }
+
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $error = 'Data invalida.';
+        }
+
+        if ($error === null && $gerencia === '') {
+            $error = 'Gerencia invalida.';
+        }
+
+        $csvPath = null;
+        if ($error === null) {
+            $csvPath = $this->findCsvPath($date);
+            if ($csvPath === null) {
+                $error = 'Nenhum arquivo CSV encontrado para esta data.';
+            }
+        }
+
+        $rows = [];
+        $newVmMap = [];
+        if ($error === null && $csvPath !== null) {
+            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
+            $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            $newVmMap = $this->findNewVmsForDateFromDb($date);
+        }
+
+        if ($error === null && $exportRequested) {
+            return $this->exportCsv($rows, $date);
+        }
+
+        return view('reports/detail_by_gerencia', [
+            'date' => $date,
+            'gerencia' => $this->normalizeGerencia($gerencia),
+            'rows' => $rows,
+            'alert' => $alert,
+            'error' => $error,
+            'newVmMap' => $newVmMap,
+        ]);
+    }
+
+    public function appliances()
+    {
+        $db = db_connect();
+        $rows = $db->query(
+            "SELECT inv.reference_date,
+                    COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                    COUNT(*) AS vm_count
+             FROM rvtools_vm_inventory inv
+             INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
+             GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+             ORDER BY inv.reference_date DESC, gerencia ASC"
+        )->getResultArray();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $date = $row['reference_date'];
+            if (!isset($grouped[$date])) {
+                $grouped[$date] = [
+                    'reference_date' => $date,
+                    'items' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $row['vm_count'] = (int) ($row['vm_count'] ?? 0);
+            $grouped[$date]['items'][] = $row;
+            $grouped[$date]['total'] += $row['vm_count'];
+        }
+
+        return view('reports/appliances', [
+            'days' => array_values($grouped),
+        ]);
+    }
+
+    public function appliancesDetail()
+    {
+        $date = trim((string) ($this->request->getGet('date') ?? ''));
+        if ($date === '') {
+            $date = trim((string) ($this->request->getPost('date') ?? ''));
+        }
+
+        $gerencia = trim((string) ($this->request->getGet('gerencia') ?? ''));
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia_filter') ?? ''));
+        }
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
+        }
+
+        $alert = null;
+        $error = null;
+
+        $infoModel = new HostInfoModel();
+        $infoMap = $this->loadInfoMap($infoModel);
+
+        $method = strtoupper($this->request->getMethod());
+        $saveRequested = $method === 'POST' && $this->request->getPost('save_info') !== null;
+        $exportRequested = $method === 'POST' && $this->request->getPost('export') !== null;
+
+        if ($saveRequested) {
+            $saveResult = $this->handleSave($infoModel);
+            if ($saveResult['success']) {
+                $alert = ['type' => 'success', 'message' => 'Salvo com sucesso!'];
+                $infoMap = $this->loadInfoMap($infoModel);
+            } else {
+                $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
+            }
+        }
+
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $error = 'Data invalida.';
+        }
+
+        if ($error === null && $gerencia === '') {
+            $error = 'Gerencia invalida.';
+        }
+
+        $csvPath = null;
+        if ($error === null) {
+            $csvPath = $this->findCsvPath($date);
+            if ($csvPath === null) {
+                $error = 'Nenhum arquivo CSV encontrado para esta data.';
+            }
+        }
+
+        $rows = [];
+        $newVmMap = [];
+        if ($error === null && $csvPath !== null) {
+            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
+            $rows = $this->filterRowsByAppliance($rows);
+            $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            $newVmMap = $this->findNewVmsForDateFromDb($date);
+        }
+
+        if ($error === null && $exportRequested) {
+            return $this->exportCsv($rows, $date);
+        }
+
+        return view('reports/detail_appliances', [
+            'date' => $date,
+            'gerencia' => $this->normalizeGerencia($gerencia),
+            'rows' => $rows,
+            'alert' => $alert,
+            'error' => $error,
+            'newVmMap' => $newVmMap,
+        ]);
+    }
+
     public function detail()
     {
         $date = trim((string) ($this->request->getGet('date') ?? ''));
@@ -135,6 +350,50 @@ class ReportController extends Controller
         return $map;
     }
 
+    private function normalizeGerencia(string $value): string
+    {
+        $value = trim($value);
+        return $value === '' ? 'Sem registro' : $value;
+    }
+
+    private function toLower(string $value): string
+    {
+        if (function_exists('mb_strtolower')) {
+            return mb_strtolower($value, 'UTF-8');
+        }
+
+        return strtolower($value);
+    }
+
+    private function filterRowsByGerencia(array $rows, string $gerencia): array
+    {
+        $target = $this->toLower($this->normalizeGerencia($gerencia));
+        $filtered = [];
+
+        foreach ($rows as $row) {
+            $rowGerencia = $this->normalizeGerencia((string) (($row['info']['gerencia'] ?? '')));
+            if ($this->toLower($rowGerencia) === $target) {
+                $filtered[] = $row;
+            }
+        }
+
+        return $filtered;
+    }
+
+    private function filterRowsByAppliance(array $rows): array
+    {
+        $filtered = [];
+
+        foreach ($rows as $row) {
+            $isAppliance = (int) (($row['info']['app'] ?? '0')) === 1;
+            if ($isAppliance) {
+                $filtered[] = $row;
+            }
+        }
+
+        return $filtered;
+    }
+
     private function normalizeBool($value): bool
     {
         if (is_bool($value)) {
@@ -173,6 +432,7 @@ class ReportController extends Controller
         }
 
         $desc = trim((string) ($this->request->getPost('desc') ?? ''));
+        $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
         $owner = trim((string) ($this->request->getPost('owner') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
@@ -183,8 +443,21 @@ class ReportController extends Controller
         }
 
         $desc = str_replace(';', ',', $desc);
+        $gerencia = str_replace(';', ',', $gerencia);
         $owner = str_replace(';', ',', $owner);
         $conv = str_replace(';', ',', $conv);
+
+        $allowedGerencias = [
+            'Sem registro',
+            'Administração de Banco de Dados',
+            'Ativos',
+            'Disponibilidade',
+            'Continuidade',
+            'Projetos Judiciarios - Aplicações',
+        ];
+        if (! in_array($gerencia, $allowedGerencias, true)) {
+            $gerencia = 'Sem registro';
+        }
 
         if ($creationDate !== '') {
             $dt = DateTime::createFromFormat('d/m/Y', $creationDate);
@@ -197,6 +470,7 @@ class ReportController extends Controller
         $data = [
             'vm' => $vm,
             'desc' => $desc,
+            'gerencia' => $gerencia,
             'owner' => $owner,
             'conv' => $conv,
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
@@ -218,7 +492,7 @@ class ReportController extends Controller
 
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
-        $rows = $infoModel->select('vm, desc, owner, conv, leg, mig, app, worker, creation_date')
+        $rows = $infoModel->select('vm, desc, gerencia, owner, conv, leg, mig, app, worker, creation_date')
             ->findAll();
 
         $map = [];
@@ -229,6 +503,7 @@ class ReportController extends Controller
             }
             $map[$vm] = [
                 'desc' => $row['desc'] ?? 'Sem registro',
+                'gerencia' => $row['gerencia'] ?? 'Sem registro',
                 'owner' => $row['owner'] ?? 'Sem registro',
                 'conv' => $row['conv'] ?? 'Nao informado',
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
@@ -304,6 +579,7 @@ class ReportController extends Controller
         $idxVM = $index['VM'] ?? null;
         $idxPS = $index['Powerstate'] ?? null;
         $idxDNS = $index['DNS Name'] ?? null;
+        $idxIP = $index['Primary IP Address'] ?? ($index['IP Address'] ?? null);
         $idxOS = $index['OS according to the VMware Tools'] ?? null;
         $idxCD = $index['Creation date'] ?? null;
         $idxAN = $index['Annotation'] ?? null;
@@ -327,11 +603,13 @@ class ReportController extends Controller
 
             $vm = (string) ($line[$idxVM] ?? '');
             $dns = (string) ($line[$idxDNS] ?? '');
+            $ip = $idxIP !== null ? (string) ($line[$idxIP] ?? '') : '';
             $creationRaw = $idxCD !== null ? (string) ($line[$idxCD] ?? '') : '';
             $annotation = $idxAN !== null ? trim((string) ($line[$idxAN] ?? '')) : '';
 
             $vm = $this->sanitizeUtf8($vm);
             $dns = $this->sanitizeUtf8($dns);
+            $ip = $this->sanitizeUtf8($ip);
             $annotation = $this->sanitizeUtf8($annotation);
 
             $info = $infoMap[$vm] ?? $this->defaultInfo();
@@ -340,6 +618,7 @@ class ReportController extends Controller
             $rows[] = [
                 'vm' => $vm,
                 'dns' => $dns,
+                'ip' => $ip,
                 'os' => $osValue,
                 'creation' => $creation,
                 'annotation' => $annotation,
@@ -360,10 +639,11 @@ class ReportController extends Controller
             '#',
             'Name VMWare',
             'DNS Hostname',
+            'IP',
             'OS VMTools',
             'Creation',
             "Descri\xc3\xa7\xc3\xa3o",
-            "Respons\xc3\xa1vel",
+            "Respons\xc3\xa1vel T\xc3\xa9cnico",
             'Conversando',
             'Legado',
             "Migr\xc3\xa1vel",
@@ -378,6 +658,7 @@ class ReportController extends Controller
                 $counter++,
                 $row['vm'],
                 $row['dns'],
+                $row['ip'] ?? '',
                 $row['os'],
                 $row['creation'],
                 $info['desc'] ?? 'Sem registro',
@@ -487,6 +768,7 @@ class ReportController extends Controller
     {
         return [
             'desc' => 'Sem registro',
+            'gerencia' => 'Sem registro',
             'owner' => 'Sem registro',
             'conv' => 'Nao informado',
             'leg' => '0',

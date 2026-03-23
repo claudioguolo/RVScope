@@ -3,20 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RVScope | Inventario</title>
+    <title>RVScope | VM por Gerência</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" href="<?= base_url('favicon.svg') ?>">
     <meta name="application-name" content="RVScope">
-    <meta name="description" content="RVScope - Inventario historico de VMs por sistema operacional.">
+    <meta name="description" content="RVScope - Relatorio de VMs por gerencia.">
     <?= view('reports/_theme') ?>
 </head>
 <body>
 <div class="container py-4">
     <?= view('reports/_topbar', [
-        'subtitle' => 'Inventario historico de VMs por sistema operacional.',
-        'activeMenu' => 'inicio',
+        'subtitle' => 'Relatorio de VMs por gerencia.',
+        'activeMenu' => 'relatorios',
+        'activeSubmenu' => 'vm-gerencia',
         'breadcrumbs' => [
-            ['label' => 'Início', 'active' => true],
+            ['label' => 'Início', 'url' => site_url('/')],
+            ['label' => 'Relatórios', 'active' => false],
+            ['label' => 'VM por Gerência', 'active' => true],
         ],
     ]) ?>
 
@@ -34,13 +37,6 @@
                         if ($dt !== false) {
                             $displayDate = $dt->format('d-m-Y');
                         }
-                        $hasNewDay = false;
-                        foreach ($day['items'] as $item) {
-                            if (!empty($item['has_new'])) {
-                                $hasNewDay = true;
-                                break;
-                            }
-                        }
                     ?>
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="<?= esc($headingId) ?>">
@@ -48,10 +44,7 @@
                                     data-bs-toggle="collapse" data-bs-target="#<?= esc($collapseId) ?>"
                                     aria-expanded="<?= $index === 0 ? 'true' : 'false' ?>"
                                     aria-controls="<?= esc($collapseId) ?>">
-<?= esc($displayDate) ?>
-                                <?php if ($hasNewDay): ?>
-                                <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
-                                <?php endif; ?>
+                                <?= esc($displayDate) ?>
                             </button>
                         </h2>
                         <div id="<?= esc($collapseId) ?>" class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>"
@@ -61,7 +54,7 @@
                                     <table class="table table-sm table-striped align-middle">
                                         <thead>
                                         <tr>
-                                            <th>Sistema Operacional</th>
+                                            <th>Gerência</th>
                                             <th class="text-end">Quantidade de VMs</th>
                                         </tr>
                                         </thead>
@@ -69,21 +62,18 @@
                                         <?php foreach ($day['items'] as $row): ?>
                                             <tr>
                                                 <td>
-                                                    <a href="<?= site_url('reports/detail?date=' . urlencode($day['reference_date']) . '&os=' . urlencode($row['os_name'])) ?>">
-                                                        <?= esc($row['os_name']) ?>
+                                                    <a href="<?= site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia'])) ?>">
+                                                        <?= esc($row['gerencia']) ?>
                                                     </a>
-                                                    <?php if (!empty($row['has_new'])): ?>
-                                                        <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
-                                                    <?php endif; ?>
                                                 </td>
-                                                <td class="text-end"><?= esc($row['vm_count']) ?></td>
+                                                <td class="text-end"><?= esc((string) $row['vm_count']) ?></td>
                                             </tr>
                                         <?php endforeach; ?>
                                         </tbody>
                                         <tfoot>
                                         <tr class="table-light fw-semibold">
                                             <td>Total</td>
-                                            <td class="text-end"><?= esc($day['total']) ?></td>
+                                            <td class="text-end"><?= esc((string) $day['total']) ?></td>
                                         </tr>
                                         </tfoot>
                                     </table>
