@@ -12,14 +12,20 @@
 </head>
 <body>
 <div class="container py-4">
+    <?php
+    $legacyOnly = !empty($legacyOnly);
+    $pageTitle = $legacyOnly ? 'VM por Gerência - Legados' : 'VM por Gerência';
+    $pageUrl = $legacyOnly ? site_url('reports/vm-por-gerencia?legacy=1') : site_url('reports/vm-por-gerencia');
+    ?>
     <?= view('reports/_topbar', [
-        'subtitle' => 'Detalhe diario por VM e gerencia.',
+        'subtitle' => $legacyOnly ? 'Detalhe diario de VMs legadas por gerencia.' : 'Detalhe diario por VM e gerencia.',
         'activeMenu' => 'relatorios',
-        'activeSubmenu' => 'vm-gerencia',
+        'activeSubmenu' => $legacyOnly ? 'vm-gerencia-legados' : 'vm-gerencia',
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
             ['label' => 'Relatórios'],
-            ['label' => 'VM por Gerência', 'url' => site_url('reports/vm-por-gerencia')],
+            ['label' => 'VM'],
+            ['label' => $pageTitle, 'url' => $pageUrl],
             ['label' => 'Detalhes', 'active' => true],
         ],
     ]) ?>
@@ -39,8 +45,12 @@
             </h5>
 
             <form method="post" class="mb-3">
+                <?= csrf_field() ?>
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
                 <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
+                <?php if ($legacyOnly): ?>
+                    <input type="hidden" name="legacy_filter" value="1">
+                <?php endif; ?>
                 <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
             </form>
 
@@ -119,9 +129,13 @@
             </div>
 
             <div class="modal-body">
+                <?= csrf_field() ?>
                 <input type="hidden" name="save_info" value="1">
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
                 <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
+                <?php if ($legacyOnly): ?>
+                    <input type="hidden" name="legacy_filter" value="1">
+                <?php endif; ?>
 
                 <label class="form-label">Name VMWare</label>
                 <input id="vm" name="vm" class="form-control" readonly>

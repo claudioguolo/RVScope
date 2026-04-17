@@ -22,11 +22,19 @@ CI_ENVIRONMENT=production
 app.baseURL="https://rvscope.local:8443/"
 
 database.default.hostname=db
-database.default.database=rvscope_db
+database.default.database=rvscope
 database.default.username=rvscope
 database.default.password=SUA_SENHA
 database.default.DBDriver=Postgre
 database.default.port=5432
+
+POSTGRES_DB=rvscope
+POSTGRES_USER=rvscope
+POSTGRES_PASSWORD=SUA_SENHA
+
+# Protecao de operacoes sensiveis (save_info e /import)
+security.adminUser=admin
+security.adminPassword=troque-esta-senha
 ```
 
 ## Subir a aplicação
@@ -52,7 +60,7 @@ cd /dados/sistemas/rvscope
 ### 2. Gerar backup do banco de dados
 Comando utilizado em produção:
 ```bash
-docker compose exec -T db pg_dump -U rvscope rvscope_db | gzip > ../backups/rvscope_$(date +%F_%H%M%S).sql.gz
+docker compose exec -T db pg_dump -U rvscope rvscope | gzip > ../backups/rvscope_$(date +%F_%H%M%S).sql.gz
 ```
 
 Opcional: validar se o backup foi criado:
@@ -105,8 +113,11 @@ RVTools_ExportvInfo2csv_YYYY-MM-DD_HH.MM.SS.csv
 
 Dispare a importação:
 ```bash
-curl -k https://localhost:8443/import
+curl -k -u "admin:troque-esta-senha" -X POST https://localhost:8443/index.php/import
 ```
+
+Para salvar alteracoes nas telas de detalhe, o navegador solicitara autenticacao HTTP Basic
+com `security.adminUser` e `security.adminPassword`.
 
 ## SSL (HTTPS 8443)
 Gere certificado local (dev):

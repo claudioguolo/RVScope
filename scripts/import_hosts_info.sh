@@ -30,8 +30,32 @@ conn = sqlite3.connect(path)
 conn.row_factory = sqlite3.Row
 conn.text_factory = lambda b: b.decode('utf-8', 'replace')
 
+columns = {
+    row["name"]
+    for row in conn.execute("PRAGMA table_info(hosts_info)").fetchall()
+}
+
+has_gerencia = "gerencia" in columns
+has_worker = "worker" in columns
+
+select_columns = [
+    "vm",
+    "\"desc\"",
+    "owner",
+    "conv",
+    "leg",
+    "mig",
+    "app",
+    "creation_date",
+    "updated_at",
+]
+if has_gerencia:
+    select_columns.append("gerencia")
+if has_worker:
+    select_columns.append("worker")
+
 rows = conn.execute(
-    "SELECT vm, \"desc\", owner, conv, leg, mig, app, creation_date, updated_at FROM hosts_info"
+    f"SELECT {', '.join(select_columns)} FROM hosts_info"
 ).fetchall()
 
 def esc(value):
@@ -56,10 +80,17 @@ for row in rows:
     app = esc(row['app'])
     creation_date = esc(row['creation_date'])
     updated_at = esc(row['updated_at'])
+    gerencia = esc(row['gerencia'] if has_gerencia else 'Sem registro')
+
+    worker_raw = row['worker'] if has_worker else 'none'
+    worker_normalized = str(worker_raw or 'none').strip().lower()
+    if worker_normalized not in {'none', 'openshift', 'rancher'}:
+        worker_normalized = 'none'
+    worker = esc(worker_normalized)
 
     print(
-        'INSERT INTO hosts_info (vm, "desc", owner, conv, leg, mig, app, creation_date, updated_at) VALUES ('
-        f"{vm}, {desc}, {owner}, {conv}, {leg}, {mig}, {app}, {creation_date}, {updated_at}"
+        'INSERT INTO hosts_info (vm, "desc", owner, conv, leg, mig, app, creation_date, updated_at, gerencia, worker) VALUES ('
+        f"{vm}, {desc}, {owner}, {conv}, {leg}, {mig}, {app}, {creation_date}, {updated_at}, {gerencia}, {worker}"
         ')\n'
         'ON CONFLICT (vm) DO UPDATE SET '
         '"desc" = EXCLUDED."desc", '
@@ -69,7 +100,9 @@ for row in rows:
         'mig = EXCLUDED.mig, '
         'app = EXCLUDED.app, '
         'creation_date = EXCLUDED.creation_date, '
-        'updated_at = EXCLUDED.updated_at;'
+        'updated_at = EXCLUDED.updated_at, '
+        'gerencia = EXCLUDED.gerencia, '
+        'worker = EXCLUDED.worker;'
     )
 
 print('COMMIT;')

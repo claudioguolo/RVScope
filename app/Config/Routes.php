@@ -19,12 +19,21 @@ $routes->setAutoRoute(false);
 
 $routes->get('/', 'ReportController::index');
 $routes->get('reports', 'ReportController::index');
+$routes->get('reports/vm', 'ReportController::vmTodos');
+$routes->get('reports/vm-migraveis', 'ReportController::vmMigraveis');
+$routes->get('reports/vm-migraveis/detail', 'ReportController::vmMigraveisDetail');
+$routes->post('reports/vm-migraveis/detail', 'ReportController::vmMigraveisDetail', ['filter' => 'csrf']);
 $routes->get('reports/vm-por-gerencia', 'ReportController::vmPorGerencia');
-$routes->match(['GET', 'POST'], 'reports/vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail');
+$routes->get('reports/vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail');
+$routes->post('reports/vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail', ['filter' => 'csrf']);
+$routes->get('reports/appliances/todos', 'ReportController::appliancesTodos');
 $routes->get('reports/appliances', 'ReportController::appliances');
-$routes->match(['GET', 'POST'], 'reports/appliances/detail', 'ReportController::appliancesDetail');
-$routes->match(['GET', 'POST'], 'reports/detail', 'ReportController::detail');
-$routes->get('import', 'ImportController::index');
+$routes->get('reports/appliances/detail', 'ReportController::appliancesDetail');
+$routes->post('reports/appliances/detail', 'ReportController::appliancesDetail', ['filter' => 'csrf']);
+$routes->get('reports/detail', 'ReportController::detail');
+$routes->post('reports/detail', 'ReportController::detail', ['filter' => 'csrf']);
+$routes->get('import', 'ImportController::form');
+$routes->post('import', 'ImportController::index');
 
 if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
     require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';

@@ -17,6 +17,9 @@ RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
         /etc/apache2/apache2.conf
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN composer create-project codeigniter4/appstarter /opt/ci4-app --no-dev --no-interaction \
+    && rm -rf /opt/ci4-app/.git
+
 COPY docker/php/apache.conf /etc/apache2/conf-available/ci4.conf
 COPY docker/php/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-custom.ini

@@ -12,45 +12,46 @@ class ReportController extends Controller
 {
     public function index()
     {
-        $model = new RvtoolsOsSummaryModel();
+        return $this->renderVmTodos([
+            'subtitle' => 'Inventario historico de VMs por sistema operacional.',
+            'activeMenu' => 'inicio',
+            'activeSubmenu' => '',
+            'breadcrumbs' => [
+                ['label' => 'Início', 'active' => true],
+            ],
+        ]);
+    }
 
-        $rows = $model->orderBy('reference_date', 'DESC')
-            ->orderBy('os_name', 'ASC')
-            ->findAll();
-
-        $grouped = [];
-        foreach ($rows as $row) {
-            $date = $row['reference_date'];
-            if (!isset($grouped[$date])) {
-                $grouped[$date] = [
-                    'reference_date' => $date,
-                    'items' => [],
-                    'total' => 0,
-                ];
-            }
-
-            $row['has_new'] = $this->normalizeBool($row['has_new'] ?? false);
-            $grouped[$date]['items'][] = $row;
-            $grouped[$date]['total'] += (int) $row['vm_count'];
-        }
-
-        return view('reports/index', [
-            'days' => array_values($grouped),
+    public function vmTodos()
+    {
+        return $this->renderVmTodos([
+            'subtitle' => 'Relatorio de VMs agrupado por sistema operacional.',
+            'activeMenu' => 'relatorios',
+            'activeSubmenu' => 'vm-todos',
+            'breadcrumbs' => [
+                ['label' => 'Início', 'url' => site_url('/')],
+                ['label' => 'Relatórios'],
+                ['label' => 'VM'],
+                ['label' => 'Todos', 'active' => true],
+            ],
         ]);
     }
 
     public function vmPorGerencia()
     {
+        $legacyOnly = $this->request->getGet('legacy') === '1';
         $db = db_connect();
-        $rows = $db->query(
-            "SELECT inv.reference_date,
-                    COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
-                    COUNT(*) AS vm_count
-             FROM rvtools_vm_inventory inv
-             LEFT JOIN hosts_info info ON info.vm = inv.vm
-             GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
-             ORDER BY inv.reference_date DESC, gerencia ASC"
-        )->getResultArray();
+        $sql = "SELECT inv.reference_date,
+                       COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                       COUNT(*) AS vm_count
+                FROM rvtools_vm_inventory inv
+                LEFT JOIN hosts_info info ON info.vm = inv.vm";
+        if ($legacyOnly) {
+            $sql .= " WHERE info.leg = 1";
+        }
+        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+                  ORDER BY inv.reference_date DESC, gerencia ASC";
+        $rows = $db->query($sql)->getResultArray();
 
         $grouped = [];
         foreach ($rows as $row) {
@@ -70,6 +71,7 @@ class ReportController extends Controller
 
         return view('reports/by_gerencia', [
             'days' => array_values($grouped),
+            'legacyOnly' => $legacyOnly,
         ]);
     }
 
@@ -87,6 +89,8 @@ class ReportController extends Controller
         if ($gerencia === '') {
             $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
         }
+        $legacyOnly = $this->request->getGet('legacy') === '1'
+            || $this->request->getPost('legacy_filter') === '1';
 
         $alert = null;
         $error = null;
@@ -130,6 +134,9 @@ class ReportController extends Controller
             $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
             $rows = $this->filterRowsByInventoryDate($rows, $date);
             $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            if ($legacyOnly) {
+                $rows = $this->filterRowsByLegacy($rows);
+            }
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
@@ -144,56 +151,36 @@ class ReportController extends Controller
             'alert' => $alert,
             'error' => $error,
             'newVmMap' => $newVmMap,
+            'legacyOnly' => $legacyOnly,
         ]);
     }
 
-    public function appliances()
+    public function vmMigraveis()
     {
         $db = db_connect();
         $rows = $db->query(
-            "SELECT inv.reference_date,
-                    COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
-                    COUNT(*) AS vm_count
+            "SELECT inv.reference_date, COUNT(*) AS vm_count
              FROM rvtools_vm_inventory inv
-             INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
-             GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
-             ORDER BY inv.reference_date DESC, gerencia ASC"
+             INNER JOIN hosts_info info ON info.vm = inv.vm AND info.mig = 1
+             GROUP BY inv.reference_date
+             ORDER BY inv.reference_date DESC"
         )->getResultArray();
 
-        $grouped = [];
-        foreach ($rows as $row) {
-            $date = $row['reference_date'];
-            if (!isset($grouped[$date])) {
-                $grouped[$date] = [
-                    'reference_date' => $date,
-                    'items' => [],
-                    'total' => 0,
+        return view('reports/vm_migraveis', [
+            'days' => array_map(static function (array $row): array {
+                return [
+                    'reference_date' => $row['reference_date'],
+                    'vm_count' => (int) ($row['vm_count'] ?? 0),
                 ];
-            }
-
-            $row['vm_count'] = (int) ($row['vm_count'] ?? 0);
-            $grouped[$date]['items'][] = $row;
-            $grouped[$date]['total'] += $row['vm_count'];
-        }
-
-        return view('reports/appliances', [
-            'days' => array_values($grouped),
+            }, $rows),
         ]);
     }
 
-    public function appliancesDetail()
+    public function vmMigraveisDetail()
     {
         $date = trim((string) ($this->request->getGet('date') ?? ''));
         if ($date === '') {
             $date = trim((string) ($this->request->getPost('date') ?? ''));
-        }
-
-        $gerencia = trim((string) ($this->request->getGet('gerencia') ?? ''));
-        if ($gerencia === '') {
-            $gerencia = trim((string) ($this->request->getPost('gerencia_filter') ?? ''));
-        }
-        if ($gerencia === '') {
-            $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
         }
 
         $alert = null;
@@ -220,8 +207,135 @@ class ReportController extends Controller
             $error = 'Data invalida.';
         }
 
-        if ($error === null && $gerencia === '') {
-            $error = 'Gerencia invalida.';
+        $csvPath = null;
+        if ($error === null) {
+            $csvPath = $this->findCsvPath($date);
+            if ($csvPath === null) {
+                $error = 'Nenhum arquivo CSV encontrado para esta data.';
+            }
+        }
+
+        $rows = [];
+        $newVmMap = [];
+        if ($error === null && $csvPath !== null) {
+            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
+            $rows = $this->filterRowsByInventoryDate($rows, $date);
+            $rows = $this->filterRowsByMigrable($rows);
+            $newVmMap = $this->findNewVmsForDateFromDb($date);
+        }
+
+        if ($error === null && $exportRequested) {
+            return $this->exportCsv($rows, $date);
+        }
+
+        return view('reports/detail_vm_migraveis', [
+            'date' => $date,
+            'rows' => $rows,
+            'alert' => $alert,
+            'error' => $error,
+            'newVmMap' => $newVmMap,
+        ]);
+    }
+
+    public function appliancesTodos()
+    {
+        $db = db_connect();
+        $rows = $db->query(
+            "SELECT inv.reference_date, COUNT(*) AS vm_count
+             FROM rvtools_vm_inventory inv
+             INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
+             GROUP BY inv.reference_date
+             ORDER BY inv.reference_date DESC"
+        )->getResultArray();
+
+        return view('reports/appliances_todos', [
+            'days' => array_map(static function (array $row): array {
+                return [
+                    'reference_date' => $row['reference_date'],
+                    'vm_count' => (int) ($row['vm_count'] ?? 0),
+                ];
+            }, $rows),
+        ]);
+    }
+
+    public function appliances()
+    {
+        $legacyOnly = $this->request->getGet('legacy') === '1';
+        $db = db_connect();
+        $sql = "SELECT inv.reference_date,
+                       COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                       COUNT(*) AS vm_count
+                FROM rvtools_vm_inventory inv
+                INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1";
+        if ($legacyOnly) {
+            $sql .= " WHERE info.leg = 1";
+        }
+        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+                  ORDER BY inv.reference_date DESC, gerencia ASC";
+        $rows = $db->query($sql)->getResultArray();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $date = $row['reference_date'];
+            if (!isset($grouped[$date])) {
+                $grouped[$date] = [
+                    'reference_date' => $date,
+                    'items' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $row['vm_count'] = (int) ($row['vm_count'] ?? 0);
+            $grouped[$date]['items'][] = $row;
+            $grouped[$date]['total'] += $row['vm_count'];
+        }
+
+        return view('reports/appliances', [
+            'days' => array_values($grouped),
+            'legacyOnly' => $legacyOnly,
+        ]);
+    }
+
+    public function appliancesDetail()
+    {
+        $date = trim((string) ($this->request->getGet('date') ?? ''));
+        if ($date === '') {
+            $date = trim((string) ($this->request->getPost('date') ?? ''));
+        }
+
+        $gerencia = trim((string) ($this->request->getGet('gerencia') ?? ''));
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia_filter') ?? ''));
+        }
+        if ($gerencia === '') {
+            $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
+        }
+        $legacyOnly = $this->request->getGet('legacy') === '1'
+            || $this->request->getPost('legacy_filter') === '1';
+        $allGerencias = $gerencia === '';
+
+        $alert = null;
+        $error = null;
+
+        $infoModel = new HostInfoModel();
+        $infoMap = $this->loadInfoMap($infoModel);
+
+        $method = strtoupper($this->request->getMethod());
+        $saveRequested = $method === 'POST' && $this->request->getPost('save_info') !== null;
+        $exportRequested = $method === 'POST' && $this->request->getPost('export') !== null;
+
+        if ($saveRequested) {
+            $saveResult = $this->handleSave($infoModel);
+            if ($saveResult['success']) {
+                $alert = ['type' => 'success', 'message' => 'Salvo com sucesso!'];
+                $infoMap = $this->loadInfoMap($infoModel);
+            } else {
+                $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
+            }
+        }
+
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $error = 'Data invalida.';
         }
 
         $csvPath = null;
@@ -237,7 +351,12 @@ class ReportController extends Controller
         if ($error === null && $csvPath !== null) {
             $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
             $rows = $this->filterRowsByAppliance($rows);
-            $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            if ($legacyOnly) {
+                $rows = $this->filterRowsByLegacy($rows);
+            }
+            if (! $allGerencias) {
+                $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            }
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
@@ -252,6 +371,8 @@ class ReportController extends Controller
             'alert' => $alert,
             'error' => $error,
             'newVmMap' => $newVmMap,
+            'legacyOnly' => $legacyOnly,
+            'allGerencias' => $allGerencias,
         ]);
     }
 
@@ -351,6 +472,35 @@ class ReportController extends Controller
         return $map;
     }
 
+    private function renderVmTodos(array $context)
+    {
+        $model = new RvtoolsOsSummaryModel();
+
+        $rows = $model->orderBy('reference_date', 'DESC')
+            ->orderBy('os_name', 'ASC')
+            ->findAll();
+
+        $grouped = [];
+        foreach ($rows as $row) {
+            $date = $row['reference_date'];
+            if (!isset($grouped[$date])) {
+                $grouped[$date] = [
+                    'reference_date' => $date,
+                    'items' => [],
+                    'total' => 0,
+                ];
+            }
+
+            $row['has_new'] = $this->normalizeBool($row['has_new'] ?? false);
+            $grouped[$date]['items'][] = $row;
+            $grouped[$date]['total'] += (int) $row['vm_count'];
+        }
+
+        return view('reports/index', $context + [
+            'days' => array_values($grouped),
+        ]);
+    }
+
     private function normalizeGerencia(string $value): string
     {
         $value = trim($value);
@@ -388,6 +538,34 @@ class ReportController extends Controller
         foreach ($rows as $row) {
             $isAppliance = (int) (($row['info']['app'] ?? '0')) === 1;
             if ($isAppliance) {
+                $filtered[] = $row;
+            }
+        }
+
+        return $filtered;
+    }
+
+    private function filterRowsByLegacy(array $rows): array
+    {
+        $filtered = [];
+
+        foreach ($rows as $row) {
+            $isLegacy = (int) (($row['info']['leg'] ?? '0')) === 1;
+            if ($isLegacy) {
+                $filtered[] = $row;
+            }
+        }
+
+        return $filtered;
+    }
+
+    private function filterRowsByMigrable(array $rows): array
+    {
+        $filtered = [];
+
+        foreach ($rows as $row) {
+            $isMigrable = (int) (($row['info']['mig'] ?? '0')) === 1;
+            if ($isMigrable) {
                 $filtered[] = $row;
             }
         }

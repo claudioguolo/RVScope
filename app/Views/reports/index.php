@@ -12,12 +12,19 @@
 </head>
 <body>
 <div class="container py-4">
+    <?php
+    $pageSubtitle = $subtitle ?? 'Inventario historico de VMs por sistema operacional.';
+    $pageActiveMenu = $activeMenu ?? 'inicio';
+    $pageActiveSubmenu = $activeSubmenu ?? '';
+    $pageBreadcrumbs = $breadcrumbs ?? [
+        ['label' => 'Início', 'active' => true],
+    ];
+    ?>
     <?= view('reports/_topbar', [
-        'subtitle' => 'Inventario historico de VMs por sistema operacional.',
-        'activeMenu' => 'inicio',
-        'breadcrumbs' => [
-            ['label' => 'Início', 'active' => true],
-        ],
+        'subtitle' => $pageSubtitle,
+        'activeMenu' => $pageActiveMenu,
+        'activeSubmenu' => $pageActiveSubmenu,
+        'breadcrumbs' => $pageBreadcrumbs,
     ]) ?>
 
     <?php if (empty($days)): ?>

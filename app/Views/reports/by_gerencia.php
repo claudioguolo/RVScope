@@ -12,14 +12,23 @@
 </head>
 <body>
 <div class="container py-4">
+    <?php
+    $legacyOnly = !empty($legacyOnly);
+    $pageTitle = $legacyOnly ? 'VM por Gerência - Legados' : 'VM por Gerência';
+    $pageSubtitle = $legacyOnly
+        ? 'Relatorio de VMs legadas por gerencia.'
+        : 'Relatorio de VMs por gerencia.';
+    $backUrl = $legacyOnly ? site_url('reports/vm-por-gerencia?legacy=1') : site_url('reports/vm-por-gerencia');
+    ?>
     <?= view('reports/_topbar', [
-        'subtitle' => 'Relatorio de VMs por gerencia.',
+        'subtitle' => $pageSubtitle,
         'activeMenu' => 'relatorios',
-        'activeSubmenu' => 'vm-gerencia',
+        'activeSubmenu' => $legacyOnly ? 'vm-gerencia-legados' : 'vm-gerencia',
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
-            ['label' => 'Relatórios', 'active' => false],
-            ['label' => 'VM por Gerência', 'active' => true],
+            ['label' => 'Relatórios'],
+            ['label' => 'VM'],
+            ['label' => $pageTitle, 'active' => true],
         ],
     ]) ?>
 
@@ -62,7 +71,9 @@
                                         <?php foreach ($day['items'] as $row): ?>
                                             <tr>
                                                 <td>
-                                                    <a href="<?= site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia'])) ?>">
+                                                    <a href="<?= $backUrl === site_url('reports/vm-por-gerencia?legacy=1')
+                                                        ? site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia']) . '&legacy=1')
+                                                        : site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia'])) ?>">
                                                         <?= esc($row['gerencia']) ?>
                                                     </a>
                                                 </td>

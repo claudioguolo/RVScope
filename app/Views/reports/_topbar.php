@@ -33,13 +33,36 @@ $breadcrumbs = $breadcrumbs ?? [
                    data-bs-toggle="dropdown"
                    aria-expanded="false">Relatórios</a>
                 <ul class="dropdown-menu app-menu-dropdown">
+                    <li><h6 class="dropdown-header">Appliances</h6></li>
                     <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'vm-gerencia' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/vm-por-gerencia') ?>">VM por Gerência</a>
+                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-todos' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/appliances/todos') ?>">Todos</a>
                     </li>
                     <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'appliances' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/appliances') ?>">Appliances por Gerência</a>
+                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-gerencia' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/appliances') ?>">Por Gerência</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-gerencia-legados' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/appliances?legacy=1') ?>">Por Gerência - Legados</a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">VM</h6></li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'vm-todos' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/vm') ?>">Por Sistema Op.</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'vm-gerencia' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/vm-por-gerencia') ?>">Por Gerência</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'vm-gerencia-legados' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/vm-por-gerencia?legacy=1') ?>">Por Gerência - Legados</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'vm-migraveis' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/vm-migraveis') ?>">Migráveis</a>
                     </li>
                 </ul>
             </li>

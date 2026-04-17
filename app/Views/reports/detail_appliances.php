@@ -12,14 +12,29 @@
 </head>
 <body>
 <div class="container py-4">
+    <?php
+    $legacyOnly = !empty($legacyOnly);
+    $allGerencias = !empty($allGerencias);
+    $pageBackUrl = $allGerencias
+        ? site_url('reports/appliances/todos')
+        : site_url('reports/appliances' . ($legacyOnly ? '?legacy=1' : ''));
+    $pageBackLabel = $allGerencias
+        ? 'Appliances - Todos'
+        : ($legacyOnly ? 'Appliances por Gerência - Legados' : 'Appliances por Gerência');
+    ?>
     <?= view('reports/_topbar', [
-        'subtitle' => 'Detalhe diario de VMs marcadas como appliance.',
+        'subtitle' => $legacyOnly
+            ? 'Detalhe diario de appliances legados.'
+            : 'Detalhe diario de VMs marcadas como appliance.',
         'activeMenu' => 'relatorios',
-        'activeSubmenu' => 'appliances',
+        'activeSubmenu' => $allGerencias
+            ? 'appliances-todos'
+            : ($legacyOnly ? 'appliances-gerencia-legados' : 'appliances-gerencia'),
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
             ['label' => 'Relatórios'],
-            ['label' => 'Appliances', 'url' => site_url('reports/appliances')],
+            ['label' => 'Appliances'],
+            ['label' => $pageBackLabel, 'url' => $pageBackUrl],
             ['label' => 'Detalhes', 'active' => true],
         ],
     ]) ?>
@@ -35,12 +50,16 @@
     <?php else: ?>
         <div class="app-card p-3">
             <h5 class="mb-3">
-                Data: <?= esc($date) ?> - Gerência: <?= esc($gerencia) ?> - Filtro: Appliances
+                Data: <?= esc($date) ?> - Gerência: <?= esc($allGerencias ? 'Todas' : $gerencia) ?> - Filtro: Appliances<?= $legacyOnly ? ' Legados' : '' ?>
             </h5>
 
             <form method="post" class="mb-3">
+                <?= csrf_field() ?>
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
-                <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
+                <input type="hidden" name="gerencia_filter" value="<?= esc($allGerencias ? '' : $gerencia, 'attr') ?>">
+                <?php if ($legacyOnly): ?>
+                    <input type="hidden" name="legacy_filter" value="1">
+                <?php endif; ?>
                 <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
             </form>
 
@@ -119,9 +138,13 @@
             </div>
 
             <div class="modal-body">
+                <?= csrf_field() ?>
                 <input type="hidden" name="save_info" value="1">
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
-                <input type="hidden" name="gerencia_filter" value="<?= esc($gerencia, 'attr') ?>">
+                <input type="hidden" name="gerencia_filter" value="<?= esc($allGerencias ? '' : $gerencia, 'attr') ?>">
+                <?php if ($legacyOnly): ?>
+                    <input type="hidden" name="legacy_filter" value="1">
+                <?php endif; ?>
 
                 <label class="form-label">Name VMWare</label>
                 <input id="vm" name="vm" class="form-control" readonly>
