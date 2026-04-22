@@ -28,6 +28,9 @@
         <div class="alert alert-info">Nenhum dado importado.</div>
     <?php else: ?>
         <div class="app-card p-3">
+            <div class="d-flex justify-content-end mb-3">
+                <a class="btn btn-brand" href="<?= site_url('reports/appliances/todos?export=csv') ?>">Exportar CSV</a>
+            </div>
             <div class="accordion" id="appliancesTodosAccordion">
                 <?php foreach ($days as $index => $day): ?>
                     <?php

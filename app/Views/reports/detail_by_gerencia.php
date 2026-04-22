@@ -51,7 +51,7 @@
                 <?php if ($legacyOnly): ?>
                     <input type="hidden" name="legacy_filter" value="1">
                 <?php endif; ?>
-                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
+                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar CSV</button>
             </form>
 
             <?php if (empty($rows)): ?>

@@ -40,7 +40,7 @@
             <form method="post" class="mb-3">
                 <?= csrf_field() ?>
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
-                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
+                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar CSV</button>
             </form>
 
             <?php if (empty($rows)): ?>

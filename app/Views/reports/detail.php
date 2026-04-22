@@ -39,7 +39,7 @@
                 <?= csrf_field() ?>
                 <input type="hidden" name="date" value="<?= esc($date, 'attr') ?>">
                 <input type="hidden" name="os" value="<?= esc($osName, 'attr') ?>">
-                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar Excel (CSV)</button>
+                <button type="submit" name="export" value="1" class="btn btn-brand">Exportar CSV</button>
             </form>
 
             <?php if (empty($rows)): ?>
