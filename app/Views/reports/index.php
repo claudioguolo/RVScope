@@ -31,9 +31,6 @@
         <div class="alert alert-info">Nenhum dado importado.</div>
     <?php else: ?>
         <div class="app-card p-3">
-            <div class="d-flex justify-content-end mb-3">
-                <a class="btn btn-brand" href="<?= site_url('reports/vm?export=csv') ?>">Exportar CSV</a>
-            </div>
             <div class="accordion" id="inventoryAccordion">
                 <?php foreach ($days as $index => $day): ?>
                     <?php $collapseId = 'collapse' . $index; ?>
@@ -67,6 +64,9 @@
                         <div id="<?= esc($collapseId) ?>" class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>"
                              aria-labelledby="<?= esc($headingId) ?>" data-bs-parent="#inventoryAccordion">
                             <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-3">
+                                    <a class="btn btn-brand" href="<?= site_url('reports/vm?date=' . urlencode($day['reference_date']) . '&export=csv') ?>">Exportar CSV</a>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-striped align-middle">
                                         <thead>

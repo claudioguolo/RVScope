@@ -70,8 +70,11 @@ class ReportController extends Controller
         }
 
         if ($this->request->getGet('export') === 'csv') {
+            $exportDate = $this->selectedExportDate();
+            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+
             return $this->exportSummaryCsv(
-                'RVScope_vm_por_gerencia' . ($legacyOnly ? '_legados' : '') . '.csv',
+                'RVScope_vm_por_gerencia' . ($legacyOnly ? '_legados' : '') . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
                 ['Data', 'Gerencia', 'Quantidade de VMs', 'Legados'],
                 array_map(static function (array $row) use ($legacyOnly): array {
                     return [
@@ -80,7 +83,7 @@ class ReportController extends Controller
                         (int) ($row['vm_count'] ?? 0),
                         $legacyOnly ? 'Sim' : 'Nao',
                     ];
-                }, $rows)
+                }, $exportRows)
             );
         }
 
@@ -182,8 +185,11 @@ class ReportController extends Controller
         )->getResultArray();
 
         if ($this->request->getGet('export') === 'csv') {
+            $exportDate = $this->selectedExportDate();
+            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+
             return $this->exportSummaryCsv(
-                'RVScope_vm_migraveis.csv',
+                'RVScope_vm_migraveis' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
                 ['Data', 'Escopo', 'Quantidade de VMs'],
                 array_map(static function (array $row): array {
                     return [
@@ -191,7 +197,7 @@ class ReportController extends Controller
                         'Migraveis',
                         (int) ($row['vm_count'] ?? 0),
                     ];
-                }, $rows)
+                }, $exportRows)
             );
         }
 
@@ -278,8 +284,11 @@ class ReportController extends Controller
         )->getResultArray();
 
         if ($this->request->getGet('export') === 'csv') {
+            $exportDate = $this->selectedExportDate();
+            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+
             return $this->exportSummaryCsv(
-                'RVScope_appliances_todos.csv',
+                'RVScope_appliances_todos' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
                 ['Data', 'Escopo', 'Quantidade de VMs'],
                 array_map(static function (array $row): array {
                     return [
@@ -287,7 +296,7 @@ class ReportController extends Controller
                         'Todos',
                         (int) ($row['vm_count'] ?? 0),
                     ];
-                }, $rows)
+                }, $exportRows)
             );
         }
 
@@ -334,8 +343,11 @@ class ReportController extends Controller
         }
 
         if ($this->request->getGet('export') === 'csv') {
+            $exportDate = $this->selectedExportDate();
+            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+
             return $this->exportSummaryCsv(
-                'RVScope_appliances_por_gerencia' . ($legacyOnly ? '_legados' : '') . '.csv',
+                'RVScope_appliances_por_gerencia' . ($legacyOnly ? '_legados' : '') . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
                 ['Data', 'Gerencia', 'Quantidade de VMs', 'Legados'],
                 array_map(static function (array $row) use ($legacyOnly): array {
                     return [
@@ -344,7 +356,7 @@ class ReportController extends Controller
                         (int) ($row['vm_count'] ?? 0),
                         $legacyOnly ? 'Sim' : 'Nao',
                     ];
-                }, $rows)
+                }, $exportRows)
             );
         }
 
@@ -555,8 +567,11 @@ class ReportController extends Controller
         }
 
         if ($this->request->getGet('export') === 'csv') {
+            $exportDate = $this->selectedExportDate();
+            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+
             return $this->exportSummaryCsv(
-                'RVScope_vm_por_sistema_operacional.csv',
+                'RVScope_vm_por_sistema_operacional' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
                 ['Data', 'Sistema Operacional', 'Quantidade de VMs', 'Possui VM nova'],
                 array_map(static function (array $row): array {
                     return [
@@ -565,7 +580,7 @@ class ReportController extends Controller
                         (int) ($row['vm_count'] ?? 0),
                         !empty($row['has_new']) ? 'Sim' : 'Nao',
                     ];
-                }, $rows)
+                }, $exportRows)
             );
         }
 
@@ -578,6 +593,23 @@ class ReportController extends Controller
     {
         $value = trim($value);
         return $value === '' ? 'Sem registro' : $value;
+    }
+
+    private function selectedExportDate(): string
+    {
+        $date = trim((string) ($this->request->getGet('date') ?? ''));
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
+    }
+
+    private function filterSummaryRowsByDate(array $rows, string $date): array
+    {
+        if ($date === '') {
+            return $rows;
+        }
+
+        return array_values(array_filter($rows, static function (array $row) use ($date): bool {
+            return (string) ($row['reference_date'] ?? '') === $date;
+        }));
     }
 
     private function toLower(string $value): string
