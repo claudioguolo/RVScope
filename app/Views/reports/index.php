@@ -24,6 +24,7 @@
         'subtitle' => $pageSubtitle,
         'activeMenu' => $pageActiveMenu,
         'activeSubmenu' => $pageActiveSubmenu,
+        'showAdminShortcut' => true,
         'breadcrumbs' => $pageBreadcrumbs,
     ]) ?>
 

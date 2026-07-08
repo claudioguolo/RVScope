@@ -35,7 +35,16 @@ POSTGRES_PASSWORD=SUA_SENHA
 # Protecao de operacoes sensiveis (save_info e /import)
 security.adminUser=admin
 security.adminPassword=troque-esta-senha
+
+# Admin inicial do espaco administrativo (se omitido, reaproveita as credenciais acima)
+security.bootstrapAdminUser=admin
+security.bootstrapAdminPassword=troque-esta-senha
+security.bootstrapAdminName=Administrador inicial
 ```
+
+O atalho de engrenagem na página inicial usa essas mesmas credenciais para liberar o acesso à tela administrativa de login.
+
+No primeiro acesso ao login administrativo, se ainda não houver usuários na tabela, a aplicação cria automaticamente o admin inicial com essas credenciais.
 
 ## Subir a aplicação
 ```bash
