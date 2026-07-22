@@ -36,6 +36,11 @@ RUN a2dissite default-ssl || true
 COPY docker/php/apache-ssl.conf /etc/apache2/conf-available/ci4-ssl.conf
 RUN a2enconf ci4-ssl
 
+# Inclui o codigo da aplicacao na imagem para uso autocontido em producao.
+# No ambiente de desenvolvimento, o bind mount de ./app em /srv/app
+# definido no docker-compose.yaml sobrescreve este conteudo.
+COPY app/ /srv/app/
+
 WORKDIR /var/www/html
 
 RUN chmod +x /usr/local/bin/entrypoint.sh
