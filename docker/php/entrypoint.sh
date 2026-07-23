@@ -74,7 +74,11 @@ if [ -d "$CUSTOM_APP" ]; then
     fi
 
     if [ -d "$CUSTOM_APP/Config" ]; then
-        cp -R "$CUSTOM_APP/Config/." "$APP_ROOT/app/Config/"
+        for cfg in "$CUSTOM_APP"/Config/*.php; do
+            if [ -f "$cfg" ]; then
+                cp -R "$cfg" "$APP_ROOT/app/Config/"
+            fi
+        done
     fi
 fi
 

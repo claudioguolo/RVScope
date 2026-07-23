@@ -268,9 +268,10 @@
     }
 
     <?php
-    $environmentLabel = match (ENVIRONMENT) {
-        'development' => 'Ambiente de Desenvolvimento',
-        'testing' => 'Ambiente de Homologação',
+    $applicationStage = strtolower(trim((string) env('APP_STAGE', '')));
+    $environmentLabel = match (true) {
+        ENVIRONMENT === 'development' => 'Ambiente de Desenvolvimento',
+        $applicationStage === 'homologation' => 'Ambiente de Homologação',
         default => null,
     };
     ?>
