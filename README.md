@@ -19,7 +19,7 @@ Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise
 Crie o arquivo `.env` na raiz do projeto (exemplo):
 
 ```ini
-CI_ENVIRONMENT=production
+CI_ENVIRONMENT=testing
 app.baseURL="https://rvscope.local:8443/"
 
 database.default.hostname=192.168.0.51
@@ -33,6 +33,7 @@ POSTGRES_DB=rvscope
 POSTGRES_USER=rvscope
 POSTGRES_PASSWORD=SUA_SENHA
 POSTGRES_HOST=192.168.0.51
+POSTGRES_PORT=5432
 
 # Protecao de operacoes sensiveis (save_info e /import)
 security.adminUser=admin
@@ -44,8 +45,12 @@ security.bootstrapAdminPassword=troque-esta-senha
 security.bootstrapAdminName=Administrador inicial
 ```
 
+Em homologação, use `CI_ENVIRONMENT=testing`. O RVScope apresenta uma
+identificação visual discreta. O bootstrap `testing` do projeto aplica as
+proteções de produção e não habilita a Debug Toolbar do CodeIgniter.
+
 Em desenvolvimento, use `CI_ENVIRONMENT=development`. Nesse modo o CodeIgniter
-exibe a Debug Toolbar e o RVScope apresenta uma identificação visual discreta.
+exibe a Debug Toolbar e o RVScope apresenta a identificação correspondente.
 Nunca habilite `development` em homologação ou produção, pois detalhes internos
 podem ser exibidos no navegador.
 

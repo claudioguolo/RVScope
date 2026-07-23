@@ -267,9 +267,16 @@
         box-shadow: 0 0 0 0.25rem rgba(22, 99, 121, 0.15);
     }
 
-    <?php if (ENVIRONMENT === 'development'): ?>
+    <?php
+    $environmentLabel = match (ENVIRONMENT) {
+        'development' => 'Ambiente de Desenvolvimento',
+        'testing' => 'Ambiente de Homologação',
+        default => null,
+    };
+    ?>
+    <?php if ($environmentLabel !== null): ?>
     body::after {
-        content: "ambiente de desenvolvimento";
+        content: "<?= esc($environmentLabel) ?>";
         position: fixed;
         right: 12px;
         bottom: 10px;

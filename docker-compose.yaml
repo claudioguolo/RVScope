@@ -5,7 +5,15 @@ services:
     container_name: rvscope_app
     restart: unless-stopped
     environment:
-      CI_ENVIRONMENT: ${CI_ENVIRONMENT:-production}
+      CI_ENVIRONMENT: ${CI_ENVIRONMENT:-testing}
+      database.tests.hostname: ${POSTGRES_HOST:-${DB_HOST:-192.168.0.51}}
+      database.tests.database: ${POSTGRES_DB:-${DB_NAME:-rvscope}}
+      database.tests.username: ${POSTGRES_USER:-${DB_USER:-rvscope}}
+      database.tests.password: ${POSTGRES_PASSWORD:-${DB_PASS}}
+      database.tests.DBDriver: Postgre
+      database.tests.port: ${POSTGRES_PORT:-5432}
+      database.tests.charset: UTF8
+      database.tests.DBDebug: "false"
     ports:
       - "8443:8443"
     volumes:
