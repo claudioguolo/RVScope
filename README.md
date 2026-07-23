@@ -22,7 +22,7 @@ Crie o arquivo `.env` na raiz do projeto (exemplo):
 CI_ENVIRONMENT=production
 app.baseURL="https://rvscope.local:8443/"
 
-database.default.hostname=db
+database.default.hostname=192.168.0.51
 database.default.database=rvscope
 database.default.username=rvscope
 database.default.password=SUA_SENHA
@@ -32,6 +32,7 @@ database.default.port=5432
 POSTGRES_DB=rvscope
 POSTGRES_USER=rvscope
 POSTGRES_PASSWORD=SUA_SENHA
+POSTGRES_HOST=192.168.0.51
 
 # Protecao de operacoes sensiveis (save_info e /import)
 security.adminUser=admin
@@ -58,6 +59,20 @@ docker compose pull app
 docker compose up -d --no-build
 ```
 
+## Banco de homologação independente
+
+O PostgreSQL possui ciclo de vida separado da aplicação, no diretório irmão
+`/home/claudio/Docker/database`. Antes do primeiro uso, crie o `.env` próprio
+da stack e confirme o nome do volume existente:
+
+```bash
+cd /home/claudio/Docker/database
+cp .env.example .env
+chmod 600 .env
+docker volume ls | grep rvscope
+docker compose up -d
+```
+
 ## Migrations
 ```bash
 docker compose exec app php /var/www/html/spark migrate
@@ -77,7 +92,7 @@ cd /home/claudio/Docker/rvscope
 mkdir -p backups
 set -o pipefail
 BACKUP="backups/rvscope_$(date +%F_%H%M%S).sql.gz"
-docker compose exec -T db pg_dump -U rvscope rvscope | gzip > "$BACKUP"
+docker exec rvscope_db pg_dump -U rvscope rvscope | gzip > "$BACKUP"
 ```
 
 Validar o conteúdo:
@@ -152,11 +167,9 @@ docker compose up -d
 docker compose down
 ```
 
-## Limpar volumes (apaga banco)
-```bash
-docker compose down -v
-```
-
 ## Notas
 - `imports/` está fora do `app/` por convenção de dados.
 - `.env`, `certs/` e `*.db` não são versionados (ver `.gitignore`).
+- `docker compose down` na raiz afeta somente a aplicação e não para o PostgreSQL.
+- O volume do banco é administrado exclusivamente pela stack irmã em
+  `/home/claudio/Docker/database`.
