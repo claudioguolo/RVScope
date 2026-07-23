@@ -4,6 +4,8 @@ services:
     pull_policy: always
     container_name: rvscope_app
     restart: unless-stopped
+    environment:
+      CI_ENVIRONMENT: ${CI_ENVIRONMENT:-production}
     ports:
       - "8443:8443"
     volumes:

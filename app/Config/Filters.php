@@ -33,12 +33,19 @@ class Filters extends BaseFilters
         'before' => [
             'databaseAvailable',
         ],
-        'after' => [
-            'toolbar',
-        ],
+        'after' => [],
     ];
 
     public array $methods = [];
 
     public array $filters = [];
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        if (ENVIRONMENT === 'development') {
+            $this->globals['after'][] = 'toolbar';
+        }
+    }
 }
