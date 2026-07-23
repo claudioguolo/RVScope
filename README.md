@@ -8,7 +8,8 @@ Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise
 - Porta 8080 opcional (HTTP)
 
 ## Estrutura
-- `docker-compose.yaml` — serviços da aplicação e do Postgres
+- `docker-compose.yaml` — homologação com imagem autocontida do Harbor
+- `docker-compose.dev.yaml` — desenvolvimento com build local e bind mount de `./app`
 - `docker/php/` — Dockerfile e configs do Apache (HTTP/HTTPS)
 - `app/` — código da aplicação
 - `imports/` — diretório de CSVs a serem importados
@@ -46,10 +47,15 @@ O atalho de engrenagem na página inicial usa essas mesmas credenciais para libe
 
 No primeiro acesso ao login administrativo, se ainda não houver usuários na tabela, a aplicação cria automaticamente o admin inicial com essas credenciais.
 
-## Subir a aplicação
+## Subir em desenvolvimento
 ```bash
-docker compose build
-docker compose up -d
+docker compose -f docker-compose.dev.yaml up -d --build
+```
+
+## Subir em homologação
+```bash
+docker compose pull app
+docker compose up -d --no-build
 ```
 
 ## Migrations
@@ -57,42 +63,37 @@ docker compose up -d
 docker compose exec app php /var/www/html/spark migrate
 ```
 
-## Atualização em Produção (GitHub -> Servidor)
-Diretório de produção: `/dados/sistemas/rvscope`
+## Atualização em homologação (Gitea -> Harbor -> Servidor)
+Diretório de homologação: `/home/claudio/Docker/rvscope`
 
 ### 1. Acessar o servidor e entrar na pasta da aplicação
 ```bash
-ssh <usuario>@<servidor>
-cd /dados/sistemas/rvscope
+ssh claudio@192.168.0.51
+cd /home/claudio/Docker/rvscope
 ```
 
 ### 2. Gerar backup do banco de dados
-Comando utilizado em produção:
 ```bash
-docker compose exec -T db pg_dump -U rvscope rvscope | gzip > ../backups/rvscope_$(date +%F_%H%M%S).sql.gz
+mkdir -p backups
+set -o pipefail
+BACKUP="backups/rvscope_$(date +%F_%H%M%S).sql.gz"
+docker compose exec -T db pg_dump -U rvscope rvscope | gzip > "$BACKUP"
 ```
 
-Opcional: validar se o backup foi criado:
+Validar o conteúdo:
 ```bash
-ls -lh ../backups | tail -n 5
+gzip -dc "$BACKUP" | sed -n '1,15p'
 ```
 
-### 3. Baixar as atualizações do GitHub
+### 3. Baixar a configuração do Gitea
 ```bash
-git fetch --all
-git checkout main
-git pull origin main
+git pull --ff-only gitea main
 ```
 
-### 4. Aplicar atualização da aplicação
-Para mudanças apenas de código PHP/views/routes:
+### 4. Baixar e aplicar a imagem do Harbor
 ```bash
-docker compose restart app
-```
-
-Se houver mudança em `Dockerfile` ou `docker-compose.yaml`:
-```bash
-docker compose up -d --build app
+docker compose pull app
+docker compose up -d --no-build
 ```
 
 ### 5. Validar o deploy
