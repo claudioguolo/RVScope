@@ -266,4 +266,25 @@
         border-color: rgba(22, 99, 121, 0.45);
         box-shadow: 0 0 0 0.25rem rgba(22, 99, 121, 0.15);
     }
+
+    <?php if (ENVIRONMENT === 'development'): ?>
+    body::after {
+        content: "ambiente de desenvolvimento";
+        position: fixed;
+        right: 12px;
+        bottom: 10px;
+        z-index: 1080;
+        padding: 3px 8px;
+        border: 1px solid rgba(22, 99, 121, 0.18);
+        border-radius: 999px;
+        color: rgba(11, 58, 71, 0.72);
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(6px);
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        pointer-events: none;
+    }
+    <?php endif; ?>
 </style>

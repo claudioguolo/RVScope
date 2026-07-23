@@ -26,20 +26,7 @@ DB_USER="${DB_USER:-${POSTGRES_USER:-rvscope}}"
 DB_PASS="${DB_PASS:-${POSTGRES_PASSWORD:-}}"
 DB_HOST="${DB_HOST:-${POSTGRES_HOST:-db}}"
 
-if [ -z "$DB_PASS" ]; then
-  echo "Erro: senha do banco nao definida. Configure database.default.password no .env (ou POSTGRES_PASSWORD)." >&2
-  exit 1
-fi
-
-# 1. Aguardar o banco de dados estar pronto
-echo "Aguardando o serviço de banco de dados ($DB_HOST:5432)..."
-export PGPASSWORD="$DB_PASS"
-until pg_isready -h "$DB_HOST" -U "$DB_USER"; do
-  echo "Postgres ainda está iniciando ou inacessível - dormindo 2s..."
-  sleep 2
-done
-
-# 2. Restauracao inicial do CodeIgniter (caso a pasta esteja vazia)
+# 1. Restauracao inicial do CodeIgniter (caso a pasta esteja vazia)
 if [ ! -f "$APP_ROOT/public/index.php" ]; then
     if [ ! -f "/opt/ci4-app/public/index.php" ]; then
         echo "Erro: base CodeIgniter nao encontrada em /opt/ci4-app dentro da imagem." >&2
@@ -67,26 +54,16 @@ if [ ! -f "$APP_ROOT/public/index.php" ]; then
     fi
 fi
 
-# 3. Criação automática do Banco de Dados caso não exista
-echo "Verificando se o banco $DB_NAME existe..."
-DB_EXISTS=$(psql -h "$DB_HOST" -U "$DB_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
-
-if [ "$DB_EXISTS" != "1" ]; then
-    echo "Criando banco de dados $DB_NAME..."
-    psql -h "$DB_HOST" -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME;"
-else
-    echo "Banco de dados $DB_NAME já existe."
-fi
-
-# 4. Sincronização de arquivos customizados do Volume /srv/app
+# 2. Sincronização de arquivos customizados do Volume /srv/app
 if [ -d "$CUSTOM_APP" ]; then
     echo "Sincronizando arquivos de $CUSTOM_APP para $APP_ROOT..."
     mkdir -p "$APP_ROOT/app/Controllers" "$APP_ROOT/app/Models" "$APP_ROOT/app/Libraries" \
-             "$APP_ROOT/app/Database/Migrations" "$APP_ROOT/app/Views" "$APP_ROOT/app/Config" \
+             "$APP_ROOT/app/Database/Migrations" "$APP_ROOT/app/Views" "$APP_ROOT/app/Filters" \
+             "$APP_ROOT/app/Config" \
              "$APP_ROOT/public"
 
     # Sincroniza subpastas se existirem
-    for dir in Controllers Models Libraries Database/Migrations Views; do
+    for dir in Controllers Models Libraries Database/Migrations Views Filters; do
         if [ -d "$CUSTOM_APP/$dir" ]; then
             cp -R "$CUSTOM_APP/$dir/." "$APP_ROOT/app/$dir"
         fi
@@ -105,13 +82,42 @@ if [ -d "$CUSTOM_APP" ]; then
     fi
 fi
 
-# 5. Executar Migrations (Sincroniza tabelas do banco)
-echo "Executando migrações do banco de dados..."
-cd "$APP_ROOT"
-# Tenta rodar as migrations. Se falhar por já estarem migradas, não trava o script.
-php spark migrate --all || echo "Aviso: Falha ao rodar migrations ou tabelas já atualizadas."
+# 3. Testar o banco sem impedir a inicializacao da aplicacao.
+DB_AVAILABLE=false
+DB_WAIT_RETRIES="${DB_WAIT_RETRIES:-5}"
+DB_WAIT_SECONDS="${DB_WAIT_SECONDS:-2}"
 
-# 6. AJUSTE FINAL DE PERMISSÕES (Crucial para evitar erro 403 e 500)
+if [ -z "$DB_PASS" ]; then
+    echo "Aviso: senha do banco nao definida; iniciando a aplicacao em modo degradado." >&2
+else
+    export PGPASSWORD="$DB_PASS"
+    export PGCONNECT_TIMEOUT=3
+    echo "Verificando o serviço de banco de dados ($DB_HOST:5432/$DB_NAME)..."
+
+    attempt=1
+    while [ "$attempt" -le "$DB_WAIT_RETRIES" ]; do
+        if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT 1" >/dev/null 2>&1; then
+            DB_AVAILABLE=true
+            break
+        fi
+
+        echo "Banco indisponível (tentativa $attempt de $DB_WAIT_RETRIES)."
+        attempt=$((attempt + 1))
+        if [ "$attempt" -le "$DB_WAIT_RETRIES" ]; then
+            sleep "$DB_WAIT_SECONDS"
+        fi
+    done
+fi
+
+if [ "$DB_AVAILABLE" = true ]; then
+    echo "Banco de dados disponível. Executando migrações..."
+    cd "$APP_ROOT"
+    php spark migrate --all || echo "Aviso: falha ao executar migrations; a aplicacao continuará iniciando."
+else
+    echo "Aviso: banco de dados indisponível. Iniciando a aplicacao em modo degradado." >&2
+fi
+
+# 4. AJUSTE FINAL DE PERMISSÕES (Crucial para evitar erro 403 e 500)
 echo "Ajustando permissões para o Apache (www-data)..."
 if [ "$(id -u)" = "0" ]; then
     chown -R www-data:www-data "$APP_ROOT" || true

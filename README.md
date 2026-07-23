@@ -44,6 +44,11 @@ security.bootstrapAdminPassword=troque-esta-senha
 security.bootstrapAdminName=Administrador inicial
 ```
 
+Em desenvolvimento, use `CI_ENVIRONMENT=development`. Nesse modo o CodeIgniter
+exibe a Debug Toolbar e o RVScope apresenta uma identificação visual discreta.
+Nunca habilite `development` em homologação ou produção, pois detalhes internos
+podem ser exibidos no navegador.
+
 O atalho de engrenagem na página inicial usa essas mesmas credenciais para liberar o acesso à tela administrativa de login.
 
 No primeiro acesso ao login administrativo, se ainda não houver usuários na tabela, a aplicação cria automaticamente o admin inicial com essas credenciais.

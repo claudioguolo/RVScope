@@ -40,6 +40,8 @@ RUN a2enconf ci4-ssl
 # No ambiente de desenvolvimento, o bind mount de ./app em /srv/app
 # definido no docker-compose.yaml sobrescreve este conteudo.
 COPY app/ /srv/app/
+RUN find /srv/app -type f -name '*.php' -print0 \
+    | xargs -0 -n1 php -l
 
 WORKDIR /var/www/html
 
