@@ -1,0 +1,16 @@
+name: Testar Gitea Runner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  runner-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmar execução
+        run: |
+          echo "Gitea Actions executando no runner rvscope"
+          uname -a
