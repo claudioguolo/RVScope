@@ -7,6 +7,7 @@ services:
     environment:
       CI_ENVIRONMENT: ${CI_ENVIRONMENT:-production}
       APP_STAGE: ${APP_STAGE:-homologation}
+      APP_IMAGE_TAG: ${RVSCOPE_IMAGE_TAG:-homolog}
     ports:
       - "8443:8443"
     volumes:

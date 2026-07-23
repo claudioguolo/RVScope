@@ -48,7 +48,9 @@ security.bootstrapAdminName=Administrador inicial
 
 Em homologação, use `CI_ENVIRONMENT=production` e `APP_STAGE=homologation`.
 O CI4 mantém integralmente o comportamento padrão e seguro de produção,
-enquanto o RVScope apresenta uma identificação visual discreta.
+enquanto o RVScope apresenta uma identificação visual discreta. O Compose
+também expõe `RVSCOPE_IMAGE_TAG` como `APP_IMAGE_TAG` para mostrar no cabeçalho
+a versão exata da imagem em execução.
 
 Em desenvolvimento, use `CI_ENVIRONMENT=development`. Nesse modo o CodeIgniter
 exibe a Debug Toolbar e o RVScope apresenta a identificação correspondente.

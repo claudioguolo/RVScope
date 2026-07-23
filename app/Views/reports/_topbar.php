@@ -4,6 +4,7 @@ $activeMenu = $activeMenu ?? 'inicio';
 $activeSubmenu = $activeSubmenu ?? '';
 $showAdminShortcut = (bool) ($showAdminShortcut ?? false);
 $applicationStage = strtolower(trim((string) env('APP_STAGE', '')));
+$imageTag = trim((string) env('APP_IMAGE_TAG', ''));
 $environmentLabel = match (true) {
     ENVIRONMENT === 'development' => 'Ambiente de Desenvolvimento',
     $applicationStage === 'homologation' => 'Ambiente de Homologação',
@@ -26,8 +27,15 @@ $breadcrumbs = $breadcrumbs ?? [
         <div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                 <div class="app-title h4 mb-0">RVScope</div>
-                <?php if ($environmentLabel !== null): ?>
-                    <span class="app-environment-badge"><?= esc($environmentLabel) ?></span>
+                <?php if ($environmentLabel !== null || $imageTag !== ''): ?>
+                    <div class="app-environment-badges">
+                        <?php if ($environmentLabel !== null): ?>
+                            <span class="app-environment-badge"><?= esc($environmentLabel) ?></span>
+                        <?php endif; ?>
+                        <?php if ($imageTag !== ''): ?>
+                            <span class="app-environment-badge app-image-tag-badge">Imagem: <?= esc($imageTag) ?></span>
+                        <?php endif; ?>
+                    </div>
                 <?php endif; ?>
             </div>
             <?php if ($subtitle !== ''): ?>

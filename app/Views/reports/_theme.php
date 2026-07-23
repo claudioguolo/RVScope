@@ -267,6 +267,13 @@
         box-shadow: 0 0 0 0.25rem rgba(22, 99, 121, 0.15);
     }
 
+    .app-environment-badges {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+    }
+
     .app-environment-badge {
         display: inline-flex;
         align-items: center;
@@ -280,5 +287,12 @@
         letter-spacing: 0.02em;
         line-height: 1.2;
         white-space: nowrap;
+    }
+
+    .app-image-tag-badge {
+        color: rgba(255, 255, 255, 0.72);
+        background: rgba(15, 23, 42, 0.12);
+        font-size: 0.62rem;
+        font-weight: 500;
     }
 </style>
