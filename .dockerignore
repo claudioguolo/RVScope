@@ -12,7 +12,9 @@ writable/
 vendor/
 
 docker-compose*.yml
+docker-compose*.yaml
 compose*.yml
+compose*.yaml
 
 README.md
 *.log
