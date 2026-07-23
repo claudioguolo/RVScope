@@ -13,3 +13,6 @@ vendor/
 
 # app imports
 imports/
+
+# compose exclusivo do ambiente de desenvolvimento local
+docker-compose.dev.yaml

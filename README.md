@@ -9,7 +9,7 @@ Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise
 
 ## Estrutura
 - `docker-compose.yaml` — homologação com imagem autocontida do Harbor
-- `docker-compose.dev.yaml` — desenvolvimento com build local e bind mount de `./app`
+- `docker-compose.dev.yaml` — arquivo local ignorado pelo Git, usado no Mac para desenvolvimento
 - `docker/php/` — Dockerfile e configs do Apache (HTTP/HTTPS)
 - `app/` — código da aplicação
 - `imports/` — diretório de CSVs a serem importados
