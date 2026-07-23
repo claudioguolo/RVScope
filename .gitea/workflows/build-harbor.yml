@@ -1,0 +1,49 @@
+name: Build e Push para o Harbor
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  HARBOR_REGISTRY: 192.168.0.51:8080
+  HARBOR_IMAGE: 192.168.0.51:8080/rvscope/rvscope
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obter o código
+        uses: actions/checkout@v4
+
+      - name: Validar acesso ao Docker
+        run: docker version
+
+      - name: Autenticar, compilar e publicar
+        env:
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+        run: |
+          set -eu
+
+          printf '%s' "$HARBOR_PASSWORD" |
+            docker login "$HARBOR_REGISTRY" \
+              --username "$HARBOR_USERNAME" \
+              --password-stdin
+
+          SHORT_SHA="$(printf '%s' '${{ gitea.sha }}' | cut -c1-12)"
+
+          docker build \
+            --file docker/php/Dockerfile \
+            --tag "$HARBOR_IMAGE:homolog" \
+            --tag "$HARBOR_IMAGE:$SHORT_SHA" \
+            .
+
+          docker push "$HARBOR_IMAGE:$SHORT_SHA"
+          docker push "$HARBOR_IMAGE:homolog"
+
+      - name: Encerrar sessão no Harbor
+        if: always()
+        run: docker logout "$HARBOR_REGISTRY" || true
