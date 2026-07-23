@@ -267,32 +267,18 @@
         box-shadow: 0 0 0 0.25rem rgba(22, 99, 121, 0.15);
     }
 
-    <?php
-    $applicationStage = strtolower(trim((string) env('APP_STAGE', '')));
-    $environmentLabel = match (true) {
-        ENVIRONMENT === 'development' => 'Ambiente de Desenvolvimento',
-        $applicationStage === 'homologation' => 'Ambiente de Homologação',
-        default => null,
-    };
-    ?>
-    <?php if ($environmentLabel !== null): ?>
-    body::after {
-        content: "<?= esc($environmentLabel) ?>";
-        position: fixed;
-        right: 12px;
-        bottom: 10px;
-        z-index: 1080;
+    .app-environment-badge {
+        display: inline-flex;
+        align-items: center;
         padding: 3px 8px;
-        border: 1px solid rgba(22, 99, 121, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.28);
         border-radius: 999px;
-        color: rgba(11, 58, 71, 0.72);
-        background: rgba(255, 255, 255, 0.82);
-        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(6px);
+        color: rgba(255, 255, 255, 0.88);
+        background: rgba(255, 255, 255, 0.10);
         font-size: 0.68rem;
         font-weight: 600;
         letter-spacing: 0.02em;
-        pointer-events: none;
+        line-height: 1.2;
+        white-space: nowrap;
     }
-    <?php endif; ?>
 </style>

@@ -3,6 +3,12 @@ $subtitle = $subtitle ?? '';
 $activeMenu = $activeMenu ?? 'inicio';
 $activeSubmenu = $activeSubmenu ?? '';
 $showAdminShortcut = (bool) ($showAdminShortcut ?? false);
+$applicationStage = strtolower(trim((string) env('APP_STAGE', '')));
+$environmentLabel = match (true) {
+    ENVIRONMENT === 'development' => 'Ambiente de Desenvolvimento',
+    $applicationStage === 'homologation' => 'Ambiente de Homologação',
+    default => null,
+};
 $adminDisplayName = '';
 if ((bool) session('admin_logged_in')) {
     $adminDisplayName = trim((string) session('admin_display_name'));
@@ -18,7 +24,12 @@ $breadcrumbs = $breadcrumbs ?? [
 <div class="app-header mb-4">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
-            <div class="app-title h4 mb-1">RVScope</div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                <div class="app-title h4 mb-0">RVScope</div>
+                <?php if ($environmentLabel !== null): ?>
+                    <span class="app-environment-badge"><?= esc($environmentLabel) ?></span>
+                <?php endif; ?>
+            </div>
             <?php if ($subtitle !== ''): ?>
                 <div class="small text-white-50"><?= esc($subtitle) ?></div>
             <?php endif; ?>
