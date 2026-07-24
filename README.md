@@ -61,6 +61,12 @@ O atalho de engrenagem na página inicial usa essas mesmas credenciais para libe
 
 No primeiro acesso ao login administrativo, se ainda não houver usuários na tabela, a aplicação cria automaticamente o admin inicial com essas credenciais.
 
+Na tela **Administração > Usuários**, a opção **Acesso autenticado aos
+relatórios** permite exigir uma sessão administrativa para acessar a página
+inicial e todas as rotas `/reports`. A opção começa desabilitada para preservar
+o acesso público atual. Quando habilitada, visitantes são encaminhados ao login
+e retornam ao relatório solicitado depois da autenticação.
+
 ## Subir em desenvolvimento
 ```bash
 docker compose -f docker-compose.dev.yaml up -d --build

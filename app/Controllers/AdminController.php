@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\AppSettingModel;
 use App\Models\AdminUserModel;
 use CodeIgniter\Controller;
 
@@ -95,7 +96,12 @@ class AdminController extends Controller
             'updated_at' => date('Y-m-d H:i:s'),
         ]);
 
-        return redirect()->to(site_url('admin/users'));
+        $reportRedirect = (string) session('authenticated_reports_redirect');
+        session()->remove('authenticated_reports_redirect');
+
+        return redirect()->to(
+            $reportRedirect !== '' ? $reportRedirect : site_url('admin/users'),
+        );
     }
 
     public function users()
@@ -106,13 +112,47 @@ class AdminController extends Controller
 
         $userModel = new AdminUserModel();
         $users = $userModel->orderBy('username', 'ASC')->findAll();
+        $settings = new AppSettingModel();
 
         return view('admin/users', [
             'users' => $users,
             'currentUser' => (string) session('admin_display_name'),
             'createdMessage' => session()->getFlashdata('admin_user_created'),
             'errorMessage' => session()->getFlashdata('admin_user_error'),
+            'authenticatedReportsEnabled' => $settings->authenticatedReportsEnabled(),
+            'settingsMessage' => session()->getFlashdata('admin_settings_message'),
+            'settingsError' => session()->getFlashdata('admin_settings_error'),
         ]);
+    }
+
+    public function updateAuthenticatedReports()
+    {
+        if (! $this->isAdminLoggedIn()) {
+            return redirect()->to(site_url('admin/login'));
+        }
+
+        $enabled = (string) ($this->request->getPost('authenticated_reports_enabled') ?? '') === '1';
+
+        try {
+            $settings = new AppSettingModel();
+            $settings->setAuthenticatedReportsEnabled($enabled);
+            session()->setFlashdata(
+                'admin_settings_message',
+                $enabled
+                    ? 'A autenticação para acessar os relatórios foi habilitada.'
+                    : 'O acesso público aos relatórios foi habilitado.',
+            );
+        } catch (\Throwable $exception) {
+            log_message('error', 'Falha ao atualizar configuração de acesso: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            session()->setFlashdata(
+                'admin_settings_error',
+                'Não foi possível atualizar a configuração de acesso.',
+            );
+        }
+
+        return redirect()->to(site_url('admin/users'));
     }
 
     public function createUser()

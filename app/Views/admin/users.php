@@ -22,6 +22,48 @@
         ],
     ]) ?>
 
+    <div class="app-card p-4 mb-4">
+        <div class="row align-items-center g-4">
+            <div class="col-12 col-lg">
+                <span class="app-eyebrow">Segurança</span>
+                <h1 class="h4 mt-2 mb-2">Acesso autenticado aos relatórios</h1>
+                <p class="text-secondary mb-0">
+                    Quando habilitado, a página inicial e todos os relatórios exigem uma sessão
+                    administrativa autenticada. Quando desabilitado, os relatórios permanecem públicos.
+                </p>
+            </div>
+            <div class="col-12 col-lg-auto">
+                <form method="post" action="<?= site_url('admin/settings/authenticated-reports') ?>">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="authenticated_reports_enabled" value="0">
+                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-3">
+                        <input
+                            class="form-check-input mt-0"
+                            type="checkbox"
+                            role="switch"
+                            id="authenticated_reports_enabled"
+                            name="authenticated_reports_enabled"
+                            value="1"
+                            <?= ! empty($authenticatedReportsEnabled) ? 'checked' : '' ?>
+                        >
+                        <label class="form-check-label fw-semibold" for="authenticated_reports_enabled">
+                            Exigir login
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100">Salvar configuração</button>
+                </form>
+            </div>
+        </div>
+
+        <?php if ($settingsError): ?>
+            <div class="alert alert-danger mt-4 mb-0"><?= esc($settingsError) ?></div>
+        <?php endif; ?>
+
+        <?php if ($settingsMessage): ?>
+            <div class="alert alert-success mt-4 mb-0"><?= esc($settingsMessage) ?></div>
+        <?php endif; ?>
+    </div>
+
     <div class="row g-4">
         <div class="col-12 col-xl-5">
             <div class="app-card p-4 h-100">
