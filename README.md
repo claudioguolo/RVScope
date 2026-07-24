@@ -173,6 +173,19 @@ Para forçar execução:
 docker compose exec app php /var/www/html/spark migrate --all
 ```
 
+### Atualização automatizada do container
+
+Depois que o pipeline publicar a imagem no Harbor, execute no servidor a partir
+do diretório do projeto, informando a tag imutável de 12 caracteres:
+
+```bash
+./scripts/deploy-homolog.sh 8723e04fe759
+```
+
+O script atualiza `RVSCOPE_IMAGE_TAG` no `.env`, baixa a imagem, recria somente
+o serviço `app`, valida a resposta HTTPS e exibe o estado das migrations. Em
+caso de falha, ele restaura a tag anterior e tenta recriar a aplicação.
+
 ## Importação de CSVs
 Coloque os arquivos em `imports/` com o padrão:
 ```
