@@ -11,6 +11,13 @@ $environmentLabel = match (true) {
     default => null,
 };
 $adminDisplayName = '';
+$authenticatedDisplayName = '';
+if ((bool) session('user_authenticated')) {
+    $authenticatedDisplayName = trim((string) session('auth_display_name'));
+    if ($authenticatedDisplayName === '') {
+        $authenticatedDisplayName = trim((string) session('auth_username'));
+    }
+}
 if ((bool) session('admin_logged_in')) {
     $adminDisplayName = trim((string) session('admin_display_name'));
     if ($adminDisplayName === '') {
@@ -42,7 +49,15 @@ $breadcrumbs = $breadcrumbs ?? [
                 <div class="small text-white-50"><?= esc($subtitle) ?></div>
             <?php endif; ?>
         </div>
-        <?php if ($showAdminShortcut): ?>
+        <?php if ($authenticatedDisplayName !== '' && $adminDisplayName === ''): ?>
+            <div class="app-admin-cluster">
+                <span class="app-admin-user"><?= esc($authenticatedDisplayName) ?></span>
+                <form method="post" action="<?= site_url('auth/logout') ?>">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="app-login-link border-0">Sair</button>
+                </form>
+            </div>
+        <?php elseif ($showAdminShortcut): ?>
             <div class="app-admin-cluster">
                 <?php if ($adminDisplayName !== ''): ?>
                     <div class="dropdown">

@@ -67,6 +67,14 @@ inicial e todas as rotas `/reports`. A opção começa desabilitada para preserv
 o acesso público atual. Quando habilitada, visitantes são encaminhados ao login
 e retornam ao relatório solicitado depois da autenticação.
 
+Na mesma tela, a integração com o **Active Directory via LDAPS** pode ser
+habilitada com o host do controlador, porta (normalmente `636`) e domínio UPN.
+O bind usa a própria senha do usuário; nenhuma senha de serviço é armazenada.
+Usuários do AD recebem acesso somente aos relatórios, nunca à administração.
+A validação do certificado TLS é obrigatória. Se o domínio usar uma CA interna,
+salve sua cadeia pública em `certs/ad-ca.crt`; esse diretório já é montado na
+imagem em `/etc/ssl/private`.
+
 ## Subir em desenvolvimento
 ```bash
 docker compose -f docker-compose.dev.yaml up -d --build

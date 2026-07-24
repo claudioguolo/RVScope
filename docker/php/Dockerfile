@@ -4,10 +4,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
         unzip \
+        libldap2-dev \
         libpq-dev \
         libicu-dev \
         postgresql-client \
-    && docker-php-ext-install pdo_pgsql pgsql intl \
+    && docker-php-ext-configure ldap \
+    && docker-php-ext-install pdo_pgsql pgsql intl ldap \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -17,8 +17,8 @@ class AuthenticatedReportsFilter implements FilterInterface
         }
 
         $session = session();
-        if ((bool) $session->get('admin_gate_authenticated')
-            && (bool) $session->get('admin_logged_in')) {
+        if ((bool) $session->get('user_authenticated')
+            || (bool) $session->get('admin_logged_in')) {
             return null;
         }
 
@@ -31,7 +31,7 @@ class AuthenticatedReportsFilter implements FilterInterface
             $session->set('authenticated_reports_redirect', $reportRedirect);
         }
 
-        return redirect()->to(site_url('admin/access'));
+        return redirect()->to(site_url('auth/login'));
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

@@ -89,6 +89,10 @@ class AdminController extends Controller
             'admin_display_name' => (string) ($user['display_name'] ?? ''),
             'admin_role' => (string) ($user['role'] ?? 'admin'),
             'admin_logged_in' => true,
+            'user_authenticated' => true,
+            'auth_username' => (string) ($user['username'] ?? ''),
+            'auth_display_name' => (string) ($user['display_name'] ?? ''),
+            'auth_source' => 'local-admin',
         ]);
 
         $userModel->update((int) $user['id'], [
@@ -113,6 +117,7 @@ class AdminController extends Controller
         $userModel = new AdminUserModel();
         $users = $userModel->orderBy('username', 'ASC')->findAll();
         $settings = new AppSettingModel();
+        $adConfiguration = $settings->adConfiguration();
 
         return view('admin/users', [
             'users' => $users,
@@ -122,6 +127,9 @@ class AdminController extends Controller
             'authenticatedReportsEnabled' => $settings->authenticatedReportsEnabled(),
             'settingsMessage' => session()->getFlashdata('admin_settings_message'),
             'settingsError' => session()->getFlashdata('admin_settings_error'),
+            'adConfiguration' => $adConfiguration,
+            'adMessage' => session()->getFlashdata('admin_ad_message'),
+            'adError' => session()->getFlashdata('admin_ad_error'),
         ]);
     }
 
@@ -150,6 +158,57 @@ class AdminController extends Controller
                 'admin_settings_error',
                 'Não foi possível atualizar a configuração de acesso.',
             );
+        }
+
+        return redirect()->to(site_url('admin/users'));
+    }
+
+    public function updateActiveDirectory()
+    {
+        if (! $this->isAdminLoggedIn()) {
+            return redirect()->to(site_url('admin/login'));
+        }
+
+        $enabled = (string) ($this->request->getPost('ad_enabled') ?? '') === '1';
+        $host = strtolower(trim((string) ($this->request->getPost('ad_host') ?? '')));
+        $domain = strtolower(trim((string) ($this->request->getPost('ad_domain') ?? '')));
+        $port = (int) ($this->request->getPost('ad_port') ?? 636);
+
+        if ($host !== ''
+            && filter_var($host, FILTER_VALIDATE_IP) === false
+            && ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host)) {
+            session()->setFlashdata('admin_ad_error', 'Informe um host LDAPS válido, sem protocolo ou caminho.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($domain !== '' && ! preg_match('/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/', $domain)) {
+            session()->setFlashdata('admin_ad_error', 'Informe um domínio UPN válido, por exemplo empresa.local.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($port < 1 || $port > 65535) {
+            session()->setFlashdata('admin_ad_error', 'Informe uma porta LDAPS válida.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($enabled && ($host === '' || $domain === '')) {
+            session()->setFlashdata('admin_ad_error', 'Host e domínio são obrigatórios para habilitar o Active Directory.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        try {
+            (new AppSettingModel())->setAdConfiguration($enabled, $host, $port, $domain);
+            session()->setFlashdata(
+                'admin_ad_message',
+                $enabled
+                    ? 'Autenticação pelo Active Directory habilitada.'
+                    : 'Autenticação pelo Active Directory desabilitada.',
+            );
+        } catch (\Throwable $exception) {
+            log_message('error', 'Falha ao atualizar Active Directory: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            session()->setFlashdata('admin_ad_error', 'Não foi possível salvar a configuração do Active Directory.');
         }
 
         return redirect()->to(site_url('admin/users'));
@@ -324,6 +383,10 @@ class AdminController extends Controller
             'admin_display_name',
             'admin_role',
             'admin_logged_in',
+            'user_authenticated',
+            'auth_username',
+            'auth_display_name',
+            'auth_source',
         ]);
 
         return redirect()->to(site_url('admin/login'));

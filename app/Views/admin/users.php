@@ -64,6 +64,92 @@
         <?php endif; ?>
     </div>
 
+    <div class="app-card p-4 mb-4">
+        <div class="mb-4">
+            <span class="app-eyebrow">Integração</span>
+            <h2 class="h4 mt-2 mb-2">Active Directory via LDAPS</h2>
+            <p class="text-secondary mb-0">
+                Permite que usuários do domínio se autentiquem para acessar os relatórios.
+                A conexão usa LDAPS com validação obrigatória do certificado TLS.
+                Para uma autoridade certificadora interna, disponibilize o certificado
+                em <code>certs/ad-ca.crt</code>.
+            </p>
+        </div>
+
+        <?php if ($adError): ?>
+            <div class="alert alert-danger"><?= esc($adError) ?></div>
+        <?php endif; ?>
+
+        <?php if ($adMessage): ?>
+            <div class="alert alert-success"><?= esc($adMessage) ?></div>
+        <?php endif; ?>
+
+        <form method="post" action="<?= site_url('admin/settings/active-directory') ?>" class="row g-3">
+            <?= csrf_field() ?>
+            <input type="hidden" name="ad_enabled" value="0">
+
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="ad_enabled"
+                        name="ad_enabled"
+                        value="1"
+                        <?= ! empty($adConfiguration['enabled']) ? 'checked' : '' ?>
+                    >
+                    <label class="form-check-label fw-semibold" for="ad_enabled">
+                        Habilitar autenticação pelo Active Directory
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+                <label for="ad_host" class="form-label fw-semibold">Host LDAPS</label>
+                <input
+                    id="ad_host"
+                    name="ad_host"
+                    class="form-control"
+                    type="text"
+                    value="<?= esc((string) ($adConfiguration['host'] ?? ''), 'attr') ?>"
+                    placeholder="dc01.empresa.local"
+                >
+                <div class="form-text">Informe somente o hostname ou IP, sem <code>ldaps://</code>.</div>
+            </div>
+
+            <div class="col-12 col-sm-4 col-lg-2">
+                <label for="ad_port" class="form-label fw-semibold">Porta</label>
+                <input
+                    id="ad_port"
+                    name="ad_port"
+                    class="form-control"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value="<?= esc((string) ($adConfiguration['port'] ?? 636), 'attr') ?>"
+                >
+            </div>
+
+            <div class="col-12 col-sm-8 col-lg-5">
+                <label for="ad_domain" class="form-label fw-semibold">Domínio UPN</label>
+                <input
+                    id="ad_domain"
+                    name="ad_domain"
+                    class="form-control"
+                    type="text"
+                    value="<?= esc((string) ($adConfiguration['domain'] ?? ''), 'attr') ?>"
+                    placeholder="empresa.local"
+                >
+                <div class="form-text">O login será enviado como <code>usuario@empresa.local</code>.</div>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-brand">Salvar integração</button>
+            </div>
+        </form>
+    </div>
+
     <div class="row g-4">
         <div class="col-12 col-xl-5">
             <div class="app-card p-4 h-100">
