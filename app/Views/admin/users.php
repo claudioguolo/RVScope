@@ -150,6 +150,161 @@
         </form>
     </div>
 
+    <div class="app-card p-4 mb-4">
+        <div class="mb-4">
+            <span class="app-eyebrow">Notificações</span>
+            <h2 class="h4 mt-2 mb-2">Conta remetente SMTP</h2>
+            <p class="text-secondary mb-0">
+                Configure a conta que será usada como remetente das notificações do RVScope.
+                A senha é criptografada antes de ser armazenada.
+            </p>
+        </div>
+
+        <?php if (! $smtpEncryptionKeyConfigured): ?>
+            <div class="alert alert-warning">
+                Defina <code>security.settingsEncryptionKey</code> no <code>.env</code>
+                antes de informar uma senha SMTP.
+            </div>
+        <?php endif; ?>
+
+        <?php if ($smtpError): ?>
+            <div class="alert alert-danger"><?= esc($smtpError) ?></div>
+        <?php endif; ?>
+
+        <?php if ($smtpMessage): ?>
+            <div class="alert alert-success"><?= esc($smtpMessage) ?></div>
+        <?php endif; ?>
+
+        <form method="post" action="<?= site_url('admin/settings/smtp') ?>" class="row g-3">
+            <?= csrf_field() ?>
+            <input type="hidden" name="smtp_enabled" value="0">
+
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input
+                        class="form-check-input"
+                        type="checkbox"
+                        role="switch"
+                        id="smtp_enabled"
+                        name="smtp_enabled"
+                        value="1"
+                        <?= ! empty($smtpConfiguration['enabled']) ? 'checked' : '' ?>
+                    >
+                    <label class="form-check-label fw-semibold" for="smtp_enabled">
+                        Habilitar envio de notificações por SMTP
+                    </label>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-5">
+                <label for="smtp_host" class="form-label fw-semibold">Servidor SMTP</label>
+                <input
+                    id="smtp_host"
+                    name="smtp_host"
+                    class="form-control"
+                    type="text"
+                    value="<?= esc((string) ($smtpConfiguration['host'] ?? ''), 'attr') ?>"
+                    placeholder="smtp.empresa.com"
+                >
+            </div>
+
+            <div class="col-6 col-lg-2">
+                <label for="smtp_port" class="form-label fw-semibold">Porta</label>
+                <input
+                    id="smtp_port"
+                    name="smtp_port"
+                    class="form-control"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value="<?= esc((string) ($smtpConfiguration['port'] ?? 587), 'attr') ?>"
+                >
+            </div>
+
+            <div class="col-6 col-lg-2">
+                <label for="smtp_crypto" class="form-label fw-semibold">Segurança</label>
+                <?php $smtpCrypto = (string) ($smtpConfiguration['crypto'] ?? 'tls'); ?>
+                <select id="smtp_crypto" name="smtp_crypto" class="form-select">
+                    <option value="tls" <?= $smtpCrypto === 'tls' ? 'selected' : '' ?>>STARTTLS</option>
+                    <option value="ssl" <?= $smtpCrypto === 'ssl' ? 'selected' : '' ?>>SSL/TLS</option>
+                    <option value="none" <?= $smtpCrypto === '' ? 'selected' : '' ?>>Nenhuma</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-lg-3">
+                <label for="smtp_username" class="form-label fw-semibold">Usuário</label>
+                <input
+                    id="smtp_username"
+                    name="smtp_username"
+                    class="form-control"
+                    type="text"
+                    autocomplete="off"
+                    value="<?= esc((string) ($smtpConfiguration['username'] ?? ''), 'attr') ?>"
+                >
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label for="smtp_password" class="form-label fw-semibold">Senha</label>
+                <input
+                    id="smtp_password"
+                    name="smtp_password"
+                    class="form-control"
+                    type="password"
+                    autocomplete="new-password"
+                    placeholder="<?= $smtpPasswordConfigured ? 'Senha já configurada; deixe vazio para manter' : 'Informe a senha SMTP' ?>"
+                >
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label for="smtp_from_email" class="form-label fw-semibold">E-mail remetente</label>
+                <input
+                    id="smtp_from_email"
+                    name="smtp_from_email"
+                    class="form-control"
+                    type="email"
+                    value="<?= esc((string) ($smtpConfiguration['from_email'] ?? ''), 'attr') ?>"
+                    placeholder="rvscope@empresa.com"
+                >
+            </div>
+
+            <div class="col-12 col-lg-4">
+                <label for="smtp_from_name" class="form-label fw-semibold">Nome do remetente</label>
+                <input
+                    id="smtp_from_name"
+                    name="smtp_from_name"
+                    class="form-control"
+                    type="text"
+                    maxlength="120"
+                    value="<?= esc((string) ($smtpConfiguration['from_name'] ?? 'RVScope'), 'attr') ?>"
+                >
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-brand">Salvar SMTP</button>
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <form method="post" action="<?= site_url('admin/settings/smtp/test') ?>" class="row g-3 align-items-end">
+            <?= csrf_field() ?>
+            <div class="col-12 col-lg">
+                <label for="smtp_test_recipient" class="form-label fw-semibold">Destinatário do teste</label>
+                <input
+                    id="smtp_test_recipient"
+                    name="smtp_test_recipient"
+                    class="form-control"
+                    type="email"
+                    placeholder="usuario@empresa.com"
+                    required
+                >
+            </div>
+            <div class="col-12 col-lg-auto">
+                <button type="submit" class="btn btn-outline-secondary">Enviar e-mail de teste</button>
+            </div>
+        </form>
+    </div>
+
     <div class="row g-4">
         <div class="col-12 col-xl-5">
             <div class="app-card p-4 h-100">

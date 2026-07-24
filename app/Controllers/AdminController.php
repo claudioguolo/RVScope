@@ -2,6 +2,8 @@
 
 namespace App\Controllers;
 
+use App\Libraries\SettingsSecretProtector;
+use App\Libraries\SmtpMailer;
 use App\Models\AppSettingModel;
 use App\Models\AdminUserModel;
 use CodeIgniter\Controller;
@@ -118,6 +120,7 @@ class AdminController extends Controller
         $users = $userModel->orderBy('username', 'ASC')->findAll();
         $settings = new AppSettingModel();
         $adConfiguration = $settings->adConfiguration();
+        $smtpConfiguration = $settings->smtpConfiguration();
 
         return view('admin/users', [
             'users' => $users,
@@ -130,6 +133,11 @@ class AdminController extends Controller
             'adConfiguration' => $adConfiguration,
             'adMessage' => session()->getFlashdata('admin_ad_message'),
             'adError' => session()->getFlashdata('admin_ad_error'),
+            'smtpConfiguration' => $smtpConfiguration,
+            'smtpPasswordConfigured' => (string) $smtpConfiguration['password_encrypted'] !== '',
+            'smtpEncryptionKeyConfigured' => (new SettingsSecretProtector())->configured(),
+            'smtpMessage' => session()->getFlashdata('admin_smtp_message'),
+            'smtpError' => session()->getFlashdata('admin_smtp_error'),
         ]);
     }
 
@@ -209,6 +217,118 @@ class AdminController extends Controller
                 'message' => $exception->getMessage(),
             ]);
             session()->setFlashdata('admin_ad_error', 'Não foi possível salvar a configuração do Active Directory.');
+        }
+
+        return redirect()->to(site_url('admin/users'));
+    }
+
+    public function updateSmtp()
+    {
+        if (! $this->isAdminLoggedIn()) {
+            return redirect()->to(site_url('admin/login'));
+        }
+
+        $enabled = (string) ($this->request->getPost('smtp_enabled') ?? '') === '1';
+        $host = strtolower(trim((string) ($this->request->getPost('smtp_host') ?? '')));
+        $port = (int) ($this->request->getPost('smtp_port') ?? 587);
+        $cryptoInput = strtolower(trim((string) ($this->request->getPost('smtp_crypto') ?? 'tls')));
+        $username = trim((string) ($this->request->getPost('smtp_username') ?? ''));
+        $password = (string) ($this->request->getPost('smtp_password') ?? '');
+        $fromEmail = strtolower(trim((string) ($this->request->getPost('smtp_from_email') ?? '')));
+        $fromName = trim((string) ($this->request->getPost('smtp_from_name') ?? 'RVScope'));
+
+        $allowedCrypto = ['tls', 'ssl', 'none'];
+        if (! in_array($cryptoInput, $allowedCrypto, true)) {
+            session()->setFlashdata('admin_smtp_error', 'Selecione uma segurança SMTP válida.');
+            return redirect()->to(site_url('admin/users'));
+        }
+        $crypto = $cryptoInput === 'none' ? '' : $cryptoInput;
+
+        if ($host !== ''
+            && filter_var($host, FILTER_VALIDATE_IP) === false
+            && ! preg_match('/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $host)) {
+            session()->setFlashdata('admin_smtp_error', 'Informe um host SMTP válido.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($port < 1 || $port > 65535) {
+            session()->setFlashdata('admin_smtp_error', 'Informe uma porta SMTP válida.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($fromEmail !== '' && filter_var($fromEmail, FILTER_VALIDATE_EMAIL) === false) {
+            session()->setFlashdata('admin_smtp_error', 'Informe um endereço de remetente válido.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        $settings = new AppSettingModel();
+        $currentConfiguration = $settings->smtpConfiguration();
+        $passwordConfigured = (string) $currentConfiguration['password_encrypted'] !== '';
+
+        if ($enabled && ($host === '' || $fromEmail === '' || $fromName === '')) {
+            session()->setFlashdata('admin_smtp_error', 'Host, remetente e nome do remetente são obrigatórios.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        if ($enabled && $username !== '' && $password === '' && ! $passwordConfigured) {
+            session()->setFlashdata('admin_smtp_error', 'Informe a senha da conta SMTP.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        try {
+            $passwordEncrypted = $password !== ''
+                ? (new SettingsSecretProtector())->encrypt($password)
+                : '';
+            $settings->setSmtpConfiguration([
+                'enabled' => $enabled,
+                'host' => $host,
+                'port' => $port,
+                'crypto' => $crypto,
+                'username' => $username,
+                'password_encrypted' => $passwordEncrypted,
+                'from_email' => $fromEmail,
+                'from_name' => $fromName,
+            ]);
+            session()->setFlashdata(
+                'admin_smtp_message',
+                $enabled
+                    ? 'Conta SMTP habilitada e salva com segurança.'
+                    : 'Envio SMTP desabilitado.',
+            );
+        } catch (\Throwable $exception) {
+            log_message('error', 'Falha ao atualizar SMTP: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            session()->setFlashdata('admin_smtp_error', $exception->getMessage());
+        }
+
+        return redirect()->to(site_url('admin/users'));
+    }
+
+    public function testSmtp()
+    {
+        if (! $this->isAdminLoggedIn()) {
+            return redirect()->to(site_url('admin/login'));
+        }
+
+        $recipient = strtolower(trim((string) ($this->request->getPost('smtp_test_recipient') ?? '')));
+        if (filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
+            session()->setFlashdata('admin_smtp_error', 'Informe um destinatário válido para o teste.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        try {
+            (new SmtpMailer())->send(
+                $recipient,
+                'Teste de configuração SMTP do RVScope',
+                '<p>Esta mensagem confirma que a configuração SMTP do RVScope está funcionando.</p>',
+            );
+            session()->setFlashdata('admin_smtp_message', 'E-mail de teste enviado com sucesso.');
+        } catch (\Throwable $exception) {
+            log_message('error', 'Teste SMTP falhou: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            session()->setFlashdata('admin_smtp_error', $exception->getMessage());
         }
 
         return redirect()->to(site_url('admin/users'));

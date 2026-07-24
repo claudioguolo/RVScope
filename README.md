@@ -44,6 +44,9 @@ security.adminPassword=troque-esta-senha
 security.bootstrapAdminUser=admin
 security.bootstrapAdminPassword=troque-esta-senha
 security.bootstrapAdminName=Administrador inicial
+
+# Chave usada para criptografar credenciais administrativas armazenadas no banco
+security.settingsEncryptionKey="SUBSTITUA_POR_UMA_CHAVE_ALEATORIA_COM_PELO_MENOS_32_CARACTERES"
 ```
 
 Em homologação, use `CI_ENVIRONMENT=production` e `APP_STAGE=homologation`.
@@ -74,6 +77,19 @@ Usuários do AD recebem acesso somente aos relatórios, nunca à administração
 A validação do certificado TLS é obrigatória. Se o domínio usar uma CA interna,
 salve sua cadeia pública em `certs/ad-ca.crt`; esse diretório já é montado na
 imagem em `/etc/ssl/private`.
+
+A seção **Conta remetente SMTP** permite configurar o servidor, segurança,
+usuário, senha e identidade do remetente das notificações. A senha é armazenada
+com criptografia autenticada AES-256-GCM. Antes de configurá-la, gere uma chave
+exclusiva para cada ambiente e grave-a no `.env`:
+
+```bash
+openssl rand -base64 48
+```
+
+Use o resultado em `security.settingsEncryptionKey`. Não altere essa chave
+depois de salvar a senha SMTP; se isso acontecer, informe e salve a senha
+novamente. A própria tela administrativa permite enviar um e-mail de teste.
 
 ## Subir em desenvolvimento
 ```bash

@@ -29,6 +29,8 @@ $routes->get('admin/users', 'AdminController::users');
 $routes->post('admin/users', 'AdminController::createUser', ['filter' => 'csrf']);
 $routes->post('admin/settings/authenticated-reports', 'AdminController::updateAuthenticatedReports', ['filter' => 'csrf']);
 $routes->post('admin/settings/active-directory', 'AdminController::updateActiveDirectory', ['filter' => 'csrf']);
+$routes->post('admin/settings/smtp', 'AdminController::updateSmtp', ['filter' => 'csrf']);
+$routes->post('admin/settings/smtp/test', 'AdminController::testSmtp', ['filter' => 'csrf']);
 $routes->get('admin/profile', 'AdminController::profile');
 $routes->post('admin/profile', 'AdminController::updateProfile', ['filter' => 'csrf']);
 $routes->post('admin/profile/password', 'AdminController::updatePassword', ['filter' => 'csrf']);

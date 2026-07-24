@@ -12,6 +12,14 @@ class AppSettingModel extends Model
     public const AD_HOST_KEY = 'ad_host';
     public const AD_PORT_KEY = 'ad_port';
     public const AD_DOMAIN_KEY = 'ad_domain';
+    public const SMTP_ENABLED_KEY = 'smtp_enabled';
+    public const SMTP_HOST_KEY = 'smtp_host';
+    public const SMTP_PORT_KEY = 'smtp_port';
+    public const SMTP_CRYPTO_KEY = 'smtp_crypto';
+    public const SMTP_USERNAME_KEY = 'smtp_username';
+    public const SMTP_PASSWORD_KEY = 'smtp_password_encrypted';
+    public const SMTP_FROM_EMAIL_KEY = 'smtp_from_email';
+    public const SMTP_FROM_NAME_KEY = 'smtp_from_name';
 
     protected $table = 'app_settings';
     protected $primaryKey = 'setting_key';
@@ -56,6 +64,40 @@ class AppSettingModel extends Model
 
         if (! $this->db->transStatus()) {
             throw new \RuntimeException('Falha ao persistir a configuração do Active Directory.');
+        }
+    }
+
+    public function smtpConfiguration(): array
+    {
+        return [
+            'enabled' => $this->boolValue(self::SMTP_ENABLED_KEY),
+            'host' => $this->value(self::SMTP_HOST_KEY),
+            'port' => (int) $this->value(self::SMTP_PORT_KEY, '587'),
+            'crypto' => $this->value(self::SMTP_CRYPTO_KEY, 'tls'),
+            'username' => $this->value(self::SMTP_USERNAME_KEY),
+            'password_encrypted' => $this->value(self::SMTP_PASSWORD_KEY),
+            'from_email' => $this->value(self::SMTP_FROM_EMAIL_KEY),
+            'from_name' => $this->value(self::SMTP_FROM_NAME_KEY, 'RVScope'),
+        ];
+    }
+
+    public function setSmtpConfiguration(array $configuration): void
+    {
+        $this->db->transStart();
+        $this->setValue(self::SMTP_ENABLED_KEY, $configuration['enabled'] ? '1' : '0');
+        $this->setValue(self::SMTP_HOST_KEY, (string) $configuration['host']);
+        $this->setValue(self::SMTP_PORT_KEY, (string) $configuration['port']);
+        $this->setValue(self::SMTP_CRYPTO_KEY, (string) $configuration['crypto']);
+        $this->setValue(self::SMTP_USERNAME_KEY, (string) $configuration['username']);
+        if ((string) $configuration['password_encrypted'] !== '') {
+            $this->setValue(self::SMTP_PASSWORD_KEY, (string) $configuration['password_encrypted']);
+        }
+        $this->setValue(self::SMTP_FROM_EMAIL_KEY, (string) $configuration['from_email']);
+        $this->setValue(self::SMTP_FROM_NAME_KEY, (string) $configuration['from_name']);
+        $this->db->transComplete();
+
+        if (! $this->db->transStatus()) {
+            throw new \RuntimeException('Falha ao persistir a configuração SMTP.');
         }
     }
 
