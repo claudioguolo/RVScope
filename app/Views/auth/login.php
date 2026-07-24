@@ -13,6 +13,7 @@
     <?= view('reports/_topbar', [
         'subtitle' => 'Autenticação necessária para acessar os relatórios.',
         'activeMenu' => '',
+        'showAdminShortcut' => false,
         'breadcrumbs' => [
             ['label' => 'Autenticação', 'active' => true],
         ],

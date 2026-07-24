@@ -42,6 +42,7 @@ class AuthController extends Controller
                 (string) ($localUser['username'] ?? $username),
                 (string) ($localUser['display_name'] ?? $username),
                 'local',
+                (string) ($localUser['role'] ?? 'admin'),
             );
             $localUserModel->update((int) ($localUser['id'] ?? 0), [
                 'last_login_at' => date('Y-m-d H:i:s'),
@@ -55,7 +56,7 @@ class AuthController extends Controller
             $displayUsername = str_contains($username, '@')
                 ? strstr($username, '@', true)
                 : $username;
-            $this->startSession($username, (string) $displayUsername, 'ad');
+            $this->startSession($username, (string) $displayUsername, 'ad', 'user');
             return redirect()->to($this->consumeRedirect());
         }
 
@@ -70,19 +71,26 @@ class AuthController extends Controller
             'auth_username',
             'auth_display_name',
             'auth_source',
+            'auth_role',
             'authenticated_reports_redirect',
         ]);
 
         return redirect()->to(site_url('auth/login'));
     }
 
-    private function startSession(string $username, string $displayName, string $source): void
+    private function startSession(
+        string $username,
+        string $displayName,
+        string $source,
+        string $role,
+    ): void
     {
         session()->set([
             'user_authenticated' => true,
             'auth_username' => $username,
             'auth_display_name' => $displayName,
             'auth_source' => $source,
+            'auth_role' => $role,
         ]);
         session()->regenerate(true);
     }

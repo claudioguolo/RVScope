@@ -15,6 +15,7 @@
     <?= view('reports/_topbar', [
         'subtitle' => 'Entrada protegida para a futura area de controle de usuarios.',
         'activeMenu' => 'usuarios',
+        'showAdminShortcut' => false,
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
             ['label' => 'Login', 'active' => true],

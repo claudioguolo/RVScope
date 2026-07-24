@@ -95,6 +95,7 @@ class AdminController extends Controller
             'auth_username' => (string) ($user['username'] ?? ''),
             'auth_display_name' => (string) ($user['display_name'] ?? ''),
             'auth_source' => 'local-admin',
+            'auth_role' => 'admin',
         ]);
 
         $userModel->update((int) $user['id'], [
@@ -507,6 +508,7 @@ class AdminController extends Controller
             'auth_username',
             'auth_display_name',
             'auth_source',
+            'auth_role',
         ]);
 
         return redirect()->to(site_url('admin/login'));
