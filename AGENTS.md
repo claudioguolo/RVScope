@@ -57,6 +57,7 @@ escopo.
 - Recursos de debug do CodeIgniter devem existir somente em `development`.
 - Novas configurações operacionais devem ficar na área administrativa e
   possuir mensagens claras de sucesso e erro.
+- Preserve e não altere ou suprima, itens visuais, funções, recursos e posição de layout sem que seja solicitado. 
 
 ## Verificações obrigatórias
 
