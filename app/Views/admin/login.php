@@ -27,11 +27,11 @@
             <div class="app-card p-4 p-lg-5">
                 <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
                     <div>
-                        <span class="app-eyebrow">Area administrativa</span>
-                        <h1 class="h3 mt-2 mb-2">Login do controle de usuários</h1>
+                        <span class="app-eyebrow">Acesso ao sistema</span>
+                        <h1 class="h3 mt-2 mb-2">Login do RVScope</h1>
                         <p class="text-secondary mb-0">
-                            O acesso a esta tela ja foi validado por autenticacao administrativa.
-                            Este sera o ponto de entrada para o gerenciamento de usuarios da aplicacao.
+                            Usuários e Editores serão encaminhados aos relatórios.
+                            Administradores também poderão acessar as configurações.
                         </p>
                     </div>
                     <div class="app-gear-badge" aria-hidden="true">
@@ -57,6 +57,7 @@
                     </div>
                     <div class="col-12 d-flex flex-column flex-sm-row gap-2 pt-2">
                         <button type="submit" class="btn btn-brand btn-lg">Entrar</button>
+                        <a href="<?= site_url('auth/login') ?>" class="btn btn-outline-secondary btn-lg">Login local ou AD</a>
                         <a href="<?= site_url('/') ?>" class="btn btn-outline-secondary btn-lg">Voltar</a>
                     </div>
                 </form>

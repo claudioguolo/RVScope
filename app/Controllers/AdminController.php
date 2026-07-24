@@ -88,31 +88,41 @@ class AdminController extends Controller
             return redirect()->to(site_url('admin/login'));
         }
 
-        if (UserAuthorization::normalizeRole((string) ($user['role'] ?? 'user')) !== UserAuthorization::ROLE_ADMIN
-            || (string) ($user['auth_source'] ?? 'local') !== 'local') {
-            session()->setFlashdata('admin_login_error', 'Este usuário não possui acesso administrativo local.');
-            return redirect()->to(site_url('admin/login'));
-        }
-
         $passwordHash = (string) ($user['password_hash'] ?? '');
-        if ($passwordHash === '' || ! password_verify($password, $passwordHash)) {
+        if ((string) ($user['auth_source'] ?? 'local') !== 'local'
+            || $passwordHash === ''
+            || ! password_verify($password, $passwordHash)) {
             session()->setFlashdata('admin_login_error', 'Usuário inválido ou inativo.');
             return redirect()->to(site_url('admin/login'));
         }
 
+        $role = UserAuthorization::normalizeRole((string) ($user['role'] ?? 'user'));
         session()->set([
-            'admin_user_id' => (int) ($user['id'] ?? 0),
-            'admin_username' => (string) ($user['username'] ?? ''),
-            'admin_display_name' => (string) ($user['display_name'] ?? ''),
-            'admin_role' => (string) ($user['role'] ?? 'admin'),
-            'admin_logged_in' => true,
             'user_authenticated' => true,
             'auth_username' => (string) ($user['username'] ?? ''),
             'auth_display_name' => (string) ($user['display_name'] ?? ''),
-            'auth_source' => 'local-admin',
-            'auth_role' => 'admin',
+            'auth_source' => 'local',
+            'auth_role' => $role,
             'auth_user_id' => (int) ($user['id'] ?? 0),
         ]);
+
+        if ($role === UserAuthorization::ROLE_ADMIN) {
+            session()->set([
+                'admin_user_id' => (int) ($user['id'] ?? 0),
+                'admin_username' => (string) ($user['username'] ?? ''),
+                'admin_display_name' => (string) ($user['display_name'] ?? ''),
+                'admin_role' => $role,
+                'admin_logged_in' => true,
+            ]);
+        } else {
+            session()->remove([
+                'admin_user_id',
+                'admin_username',
+                'admin_display_name',
+                'admin_role',
+                'admin_logged_in',
+            ]);
+        }
         session()->regenerate(true);
 
         $userModel->update((int) $user['id'], [
@@ -124,7 +134,11 @@ class AdminController extends Controller
         session()->remove('authenticated_reports_redirect');
 
         return redirect()->to(
-            $reportRedirect !== '' ? $reportRedirect : site_url('admin/users'),
+            $reportRedirect !== ''
+                ? $reportRedirect
+                : ($role === UserAuthorization::ROLE_ADMIN
+                    ? site_url('admin/users')
+                    : site_url('/')),
         );
     }
 
