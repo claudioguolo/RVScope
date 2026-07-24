@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\SettingsSecretProtector;
 use App\Libraries\SmtpMailer;
+use App\Libraries\UserAuthorization;
 use App\Models\AppSettingModel;
 use App\Models\AdminUserModel;
 use CodeIgniter\Controller;
@@ -12,6 +13,10 @@ class AdminController extends Controller
 {
     public function access()
     {
+        if (UserAuthorization::canAdminister()) {
+            return redirect()->to(site_url('admin/users'));
+        }
+
         if ($this->hasAdminAccess()) {
             return redirect()->to(site_url('admin/login'));
         }
@@ -42,6 +47,10 @@ class AdminController extends Controller
 
     public function login()
     {
+        if (UserAuthorization::canAdminister()) {
+            return redirect()->to(site_url('admin/users'));
+        }
+
         if (! $this->hasAdminAccess()) {
             return redirect()->to(site_url('admin/access'));
         }
@@ -79,6 +88,12 @@ class AdminController extends Controller
             return redirect()->to(site_url('admin/login'));
         }
 
+        if (UserAuthorization::normalizeRole((string) ($user['role'] ?? 'user')) !== UserAuthorization::ROLE_ADMIN
+            || (string) ($user['auth_source'] ?? 'local') !== 'local') {
+            session()->setFlashdata('admin_login_error', 'Este usuário não possui acesso administrativo local.');
+            return redirect()->to(site_url('admin/login'));
+        }
+
         $passwordHash = (string) ($user['password_hash'] ?? '');
         if ($passwordHash === '' || ! password_verify($password, $passwordHash)) {
             session()->setFlashdata('admin_login_error', 'Usuário inválido ou inativo.');
@@ -96,7 +111,9 @@ class AdminController extends Controller
             'auth_display_name' => (string) ($user['display_name'] ?? ''),
             'auth_source' => 'local-admin',
             'auth_role' => 'admin',
+            'auth_user_id' => (int) ($user['id'] ?? 0),
         ]);
+        session()->regenerate(true);
 
         $userModel->update((int) $user['id'], [
             'last_login_at' => date('Y-m-d H:i:s'),
@@ -125,7 +142,7 @@ class AdminController extends Controller
 
         return view('admin/users', [
             'users' => $users,
-            'currentUser' => (string) session('admin_display_name'),
+            'currentUser' => (string) (session('auth_display_name') ?: session('admin_display_name')),
             'createdMessage' => session()->getFlashdata('admin_user_created'),
             'errorMessage' => session()->getFlashdata('admin_user_error'),
             'authenticatedReportsEnabled' => $settings->authenticatedReportsEnabled(),
@@ -344,7 +361,7 @@ class AdminController extends Controller
         $username = strtolower(trim((string) ($this->request->getPost('username') ?? '')));
         $displayName = trim((string) ($this->request->getPost('display_name') ?? ''));
         $password = (string) ($this->request->getPost('password') ?? '');
-        $role = strtolower(trim((string) ($this->request->getPost('role') ?? 'admin')));
+        $role = UserAuthorization::normalizeRole((string) ($this->request->getPost('role') ?? 'user'));
 
         if ($username === '' || $displayName === '' || $password === '') {
             session()->setFlashdata('admin_user_error', 'Preencha nome, usuário e senha.');
@@ -361,11 +378,6 @@ class AdminController extends Controller
             return redirect()->to(site_url('admin/users'));
         }
 
-        $allowedRoles = ['admin'];
-        if (! in_array($role, $allowedRoles, true)) {
-            $role = 'admin';
-        }
-
         $userModel = new AdminUserModel();
         $exists = $userModel->where('username', $username)->first();
         if (is_array($exists)) {
@@ -377,6 +389,7 @@ class AdminController extends Controller
             'username' => $username,
             'display_name' => $displayName,
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'auth_source' => 'local',
             'role' => $role,
             'is_active' => 1,
             'created_at' => date('Y-m-d H:i:s'),
@@ -384,6 +397,52 @@ class AdminController extends Controller
         ]);
 
         session()->setFlashdata('admin_user_created', 'Usuário criado com sucesso.');
+
+        return redirect()->to(site_url('admin/users'));
+    }
+
+    public function updateUser(int $userId)
+    {
+        if (! $this->isAdminLoggedIn()) {
+            return redirect()->to(site_url('admin/login'));
+        }
+
+        $userModel = new AdminUserModel();
+        $user = $userModel->find($userId);
+        if (! is_array($user)) {
+            session()->setFlashdata('admin_user_error', 'Usuário não encontrado.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        $role = UserAuthorization::normalizeRole((string) ($this->request->getPost('role') ?? 'user'));
+        $isActive = (string) ($this->request->getPost('is_active') ?? '') === '1' ? 1 : 0;
+        $currentUserId = (int) session('auth_user_id');
+
+        if ($userId === $currentUserId
+            && ($role !== UserAuthorization::ROLE_ADMIN || $isActive !== 1)) {
+            session()->setFlashdata('admin_user_error', 'Você não pode remover seu próprio acesso administrativo.');
+            return redirect()->to(site_url('admin/users'));
+        }
+
+        $wasActiveAdmin = (int) ($user['is_active'] ?? 0) === 1
+            && UserAuthorization::normalizeRole((string) ($user['role'] ?? 'user')) === UserAuthorization::ROLE_ADMIN;
+        if ($wasActiveAdmin && ($role !== UserAuthorization::ROLE_ADMIN || $isActive !== 1)) {
+            $activeAdmins = $userModel
+                ->where('role', UserAuthorization::ROLE_ADMIN)
+                ->where('is_active', 1)
+                ->countAllResults();
+            if ($activeAdmins <= 1) {
+                session()->setFlashdata('admin_user_error', 'Mantenha pelo menos um administrador ativo.');
+                return redirect()->to(site_url('admin/users'));
+            }
+        }
+
+        $userModel->update($userId, [
+            'role' => $role,
+            'is_active' => $isActive,
+            'updated_at' => date('Y-m-d H:i:s'),
+        ]);
+        session()->setFlashdata('admin_user_created', 'Permissões do usuário atualizadas.');
 
         return redirect()->to(site_url('admin/users'));
     }
@@ -509,6 +568,7 @@ class AdminController extends Controller
             'auth_display_name',
             'auth_source',
             'auth_role',
+            'auth_user_id',
         ]);
 
         return redirect()->to(site_url('admin/login'));
@@ -521,12 +581,12 @@ class AdminController extends Controller
 
     private function isAdminLoggedIn(): bool
     {
-        return $this->hasAdminAccess() && (bool) session('admin_logged_in');
+        return UserAuthorization::canAdminister();
     }
 
     private function currentAdminUser(): ?array
     {
-        $userId = (int) session('admin_user_id');
+        $userId = (int) (session('auth_user_id') ?: session('admin_user_id'));
         if ($userId <= 0) {
             return null;
         }
@@ -554,6 +614,7 @@ class AdminController extends Controller
             'username' => $this->bootstrapAdminUsername(),
             'display_name' => trim((string) env('security.bootstrapAdminName', 'Administrador inicial')),
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'auth_source' => 'local',
             'role' => 'admin',
             'is_active' => 1,
             'created_at' => date('Y-m-d H:i:s'),

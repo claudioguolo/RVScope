@@ -311,9 +311,9 @@
                 <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
                     <div>
                         <span class="app-eyebrow">Novo usuário</span>
-                        <h1 class="h4 mt-2 mb-2">Criar acesso administrativo</h1>
+                        <h1 class="h4 mt-2 mb-2">Criar usuário local</h1>
                         <p class="text-secondary mb-0">
-                            Use este formulário para cadastrar os primeiros administradores da aplicação.
+                            Contas locais e do AD usam os mesmos perfis de autorização.
                         </p>
                     </div>
                     <div class="app-gear-badge" aria-hidden="true">
@@ -348,6 +348,8 @@
                     <div class="col-12">
                         <label for="role" class="form-label fw-semibold">Perfil</label>
                         <select id="role" name="role" class="form-select">
+                            <option value="user">Usuário</option>
+                            <option value="editor">Editor</option>
                             <option value="admin">Administrador</option>
                         </select>
                     </div>
@@ -381,6 +383,7 @@
                         <tr>
                             <th>Usuário</th>
                             <th>Nome</th>
+                            <th>Origem</th>
                             <th>Perfil</th>
                             <th>Último login</th>
                             <th>Status</th>
@@ -388,17 +391,31 @@
                         </thead>
                         <tbody>
                         <?php foreach ($users as $user): ?>
+                            <?php $userFormId = 'user-permissions-' . (int) ($user['id'] ?? 0); ?>
                             <tr>
                                 <td class="fw-semibold"><?= esc((string) ($user['username'] ?? '')) ?></td>
                                 <td><?= esc((string) ($user['display_name'] ?? '')) ?></td>
-                                <td><?= esc((string) ($user['role'] ?? 'admin')) ?></td>
+                                <td><?= (string) ($user['auth_source'] ?? 'local') === 'ad' ? 'AD' : 'Local' ?></td>
+                                <td>
+                                    <?php $userRole = (string) ($user['role'] ?? 'user'); ?>
+                                    <select name="role" form="<?= esc($userFormId, 'attr') ?>" class="form-select form-select-sm" aria-label="Perfil de <?= esc((string) ($user['username'] ?? ''), 'attr') ?>">
+                                        <option value="user" <?= $userRole === 'user' ? 'selected' : '' ?>>Usuário</option>
+                                        <option value="editor" <?= $userRole === 'editor' ? 'selected' : '' ?>>Editor</option>
+                                        <option value="admin" <?= $userRole === 'admin' ? 'selected' : '' ?>>Administrador</option>
+                                    </select>
+                                </td>
                                 <td><?= esc((string) (($user['last_login_at'] ?? '') ?: 'Nunca acessou')) ?></td>
                                 <td>
-                                    <?php if ((int) ($user['is_active'] ?? 0) === 1): ?>
-                                        <span class="badge text-bg-success">Ativo</span>
-                                    <?php else: ?>
-                                        <span class="badge text-bg-secondary">Inativo</span>
-                                    <?php endif; ?>
+                                    <form id="<?= esc($userFormId, 'attr') ?>" method="post" action="<?= site_url('admin/users/' . (int) ($user['id'] ?? 0)) ?>">
+                                        <?= csrf_field() ?>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <select name="is_active" class="form-select form-select-sm" aria-label="Status de <?= esc((string) ($user['username'] ?? ''), 'attr') ?>">
+                                                <option value="1" <?= (int) ($user['is_active'] ?? 0) === 1 ? 'selected' : '' ?>>Ativo</option>
+                                                <option value="0" <?= (int) ($user['is_active'] ?? 0) !== 1 ? 'selected' : '' ?>>Inativo</option>
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Salvar</button>
+                                        </div>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

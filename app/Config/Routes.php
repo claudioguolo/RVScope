@@ -27,6 +27,7 @@ $routes->get('admin/login', 'AdminController::login');
 $routes->post('admin/login', 'AdminController::authenticate', ['filter' => 'csrf']);
 $routes->get('admin/users', 'AdminController::users');
 $routes->post('admin/users', 'AdminController::createUser', ['filter' => 'csrf']);
+$routes->post('admin/users/(:num)', 'AdminController::updateUser/$1', ['filter' => 'csrf']);
 $routes->post('admin/settings/authenticated-reports', 'AdminController::updateAuthenticatedReports', ['filter' => 'csrf']);
 $routes->post('admin/settings/active-directory', 'AdminController::updateActiveDirectory', ['filter' => 'csrf']);
 $routes->post('admin/settings/smtp', 'AdminController::updateSmtp', ['filter' => 'csrf']);
@@ -50,8 +51,10 @@ $routes->group('reports', ['filter' => 'authenticatedReports'], static function 
     $routes->get('detail', 'ReportController::detail');
     $routes->post('detail', 'ReportController::detail', ['filter' => 'csrf']);
 });
-$routes->get('import', 'ImportController::form');
-$routes->post('import', 'ImportController::index');
+$routes->group('import', ['filter' => 'role:editor,admin'], static function ($routes) {
+    $routes->get('', 'ImportController::form');
+    $routes->post('', 'ImportController::index', ['filter' => 'csrf']);
+});
 
 if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
     require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';

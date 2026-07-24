@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Libraries\UserAuthorization;
 use App\Models\HostInfoModel;
 use App\Models\RvtoolsOsSummaryModel;
 use CodeIgniter\Controller;
@@ -750,6 +751,13 @@ class ReportController extends Controller
 
     private function handleSave(HostInfoModel $infoModel): array
     {
+        if (! UserAuthorization::canEditHosts()) {
+            return [
+                'success' => false,
+                'message' => 'Seu perfil permite apenas consultar as informações dos hosts.',
+            ];
+        }
+
         $vm = trim((string) ($this->request->getPost('vm') ?? ''));
         if ($vm === '') {
             return ['success' => false, 'message' => 'Nome da VM vazio.'];

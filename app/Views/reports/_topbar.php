@@ -12,7 +12,7 @@ $environmentLabel = match (true) {
 };
 $adminDisplayName = '';
 $authenticatedDisplayName = '';
-$authenticatedRole = strtolower(trim((string) session('auth_role')));
+$authenticatedRole = \App\Libraries\UserAuthorization::currentRole();
 if ((bool) session('user_authenticated')) {
     $authenticatedDisplayName = trim((string) session('auth_display_name'));
     if ($authenticatedDisplayName === '') {
@@ -58,7 +58,7 @@ $breadcrumbs = $breadcrumbs ?? [
                     <button type="submit" class="app-login-link border-0">Sair</button>
                 </form>
                 <?php if ($showAdminShortcut && $authenticatedRole === 'admin'): ?>
-                    <a class="app-settings-link" href="<?= site_url('admin/access') ?>" aria-label="Acessar administração">
+                    <a class="app-settings-link" href="<?= site_url('admin/users') ?>" aria-label="Acessar administração">
                         <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                             <path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.2 7.2 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.49-.42h-3.84a.5.5 0 0 0-.49.42l-.36 2.54c-.58.23-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02-.63.06-.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.4 1.05.71 1.63.94l.36 2.54c.04.24.24.42.49.42h3.84c.25 0 .45-.18.49-.42l.36-2.54c.58-.23 1.13-.54 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/>
                         </svg>

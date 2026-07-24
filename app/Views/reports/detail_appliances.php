@@ -1,3 +1,4 @@
+<?php $canEditHosts = \App\Libraries\UserAuthorization::canEditHosts(); ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -117,7 +118,7 @@
                                         data-worker="<?= esc($info['worker'] ?? 'none', 'attr') ?>"
                                         data-creation="<?= esc($row['creation'] ?? '', 'attr') ?>"
                                         data-annotation="<?= esc($row['annotation'] ?? '', 'attr') ?>"
-                                    >Detalhes / Editar</button>
+                                    ><?= $canEditHosts ? 'Detalhes / Editar' : 'Detalhes' ?></button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -205,7 +206,9 @@
 
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Fechar</button>
-                <button class="btn btn-brand" type="submit">Salvar</button>
+                <?php if ($canEditHosts): ?>
+                    <button class="btn btn-brand" type="submit">Salvar</button>
+                <?php endif; ?>
             </div>
         </form>
     </div>
@@ -214,6 +217,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const infoModal = document.getElementById('infoModal');
+if (infoModal && !<?= $canEditHosts ? 'true' : 'false' ?>) {
+  infoModal.querySelectorAll('input:not([type="hidden"]), textarea:not(#annotation), select')
+    .forEach((field) => { field.disabled = true; });
+}
 if (infoModal) {
   infoModal.addEventListener('show.bs.modal', (event) => {
     const button = event.relatedTarget;

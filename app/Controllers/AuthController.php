@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\LdapAuthenticator;
+use App\Libraries\UserAuthorization;
 use App\Models\AdminUserModel;
 use CodeIgniter\Controller;
 
@@ -33,16 +34,18 @@ class AuthController extends Controller
         $localUserModel = new AdminUserModel();
         $localUser = $localUserModel
             ->where('username', $username)
-            ->where('is_active', 1)
             ->first();
 
         if (is_array($localUser)
+            && (string) ($localUser['auth_source'] ?? 'local') === 'local'
+            && (int) ($localUser['is_active'] ?? 0) === 1
             && password_verify($password, (string) ($localUser['password_hash'] ?? ''))) {
             $this->startSession(
                 (string) ($localUser['username'] ?? $username),
                 (string) ($localUser['display_name'] ?? $username),
                 'local',
-                (string) ($localUser['role'] ?? 'admin'),
+                UserAuthorization::normalizeRole((string) ($localUser['role'] ?? 'user')),
+                (int) ($localUser['id'] ?? 0),
             );
             $localUserModel->update((int) ($localUser['id'] ?? 0), [
                 'last_login_at' => date('Y-m-d H:i:s'),
@@ -53,10 +56,48 @@ class AuthController extends Controller
 
         $ldap = new LdapAuthenticator();
         if ($ldap->authenticate($username, $password)) {
+            if (is_array($localUser)
+                && (string) ($localUser['auth_source'] ?? 'local') !== 'ad') {
+                session()->setFlashdata('auth_login_error', 'Este login está reservado para uma conta local.');
+                return redirect()->to(site_url('auth/login'));
+            }
+
             $displayUsername = str_contains($username, '@')
                 ? strstr($username, '@', true)
                 : $username;
-            $this->startSession($username, (string) $displayUsername, 'ad', 'user');
+
+            $adUser = $localUser;
+            if (! is_array($adUser)) {
+                $userId = $localUserModel->insert([
+                    'username' => $username,
+                    'display_name' => (string) $displayUsername,
+                    'password_hash' => '',
+                    'auth_source' => 'ad',
+                    'role' => UserAuthorization::ROLE_USER,
+                    'is_active' => 1,
+                    'last_login_at' => date('Y-m-d H:i:s'),
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ], true);
+                $adUser = $localUserModel->find($userId);
+            }
+
+            if (! is_array($adUser) || (int) ($adUser['is_active'] ?? 0) !== 1) {
+                session()->setFlashdata('auth_login_error', 'Usuário inválido ou inativo.');
+                return redirect()->to(site_url('auth/login'));
+            }
+
+            $localUserModel->update((int) ($adUser['id'] ?? 0), [
+                'last_login_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+            $this->startSession(
+                (string) ($adUser['username'] ?? $username),
+                (string) ($adUser['display_name'] ?? $displayUsername),
+                'ad',
+                UserAuthorization::normalizeRole((string) ($adUser['role'] ?? 'user')),
+                (int) ($adUser['id'] ?? 0),
+            );
             return redirect()->to($this->consumeRedirect());
         }
 
@@ -72,6 +113,7 @@ class AuthController extends Controller
             'auth_display_name',
             'auth_source',
             'auth_role',
+            'auth_user_id',
             'authenticated_reports_redirect',
         ]);
 
@@ -83,6 +125,7 @@ class AuthController extends Controller
         string $displayName,
         string $source,
         string $role,
+        int $userId,
     ): void
     {
         session()->set([
@@ -91,14 +134,14 @@ class AuthController extends Controller
             'auth_display_name' => $displayName,
             'auth_source' => $source,
             'auth_role' => $role,
+            'auth_user_id' => $userId,
         ]);
         session()->regenerate(true);
     }
 
     private function isAuthenticated(): bool
     {
-        return (bool) session('user_authenticated')
-            || (bool) session('admin_logged_in');
+        return UserAuthorization::isAuthenticated();
     }
 
     private function consumeRedirect(): string

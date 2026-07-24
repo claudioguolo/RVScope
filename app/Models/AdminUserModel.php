@@ -16,6 +16,7 @@ class AdminUserModel extends Model
         'username',
         'display_name',
         'password_hash',
+        'auth_source',
         'role',
         'is_active',
         'last_login_at',

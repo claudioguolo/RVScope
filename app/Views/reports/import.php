@@ -30,6 +30,7 @@
                 </p>
             </div>
             <form method="post" action="<?= site_url('import') ?>">
+                <?= csrf_field() ?>
                 <button type="submit" class="btn btn-brand btn-lg">Executar importação</button>
             </form>
         </div>
@@ -80,7 +81,7 @@
                 <div class="fw-semibold mb-1">Como usar</div>
                 <div class="text-secondary">
                     Abra esta página no navegador e use o botão acima. Para chamadas automatizadas, use
-                    <code>POST /import</code> sem autenticação.
+                    <code>POST /import</code> exige um usuário Editor ou Administrador.
                 </div>
             </div>
         <?php endif; ?>

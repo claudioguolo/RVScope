@@ -2,6 +2,7 @@
 
 namespace App\Filters;
 
+use App\Libraries\UserAuthorization;
 use App\Models\AppSettingModel;
 use CodeIgniter\Filters\FilterInterface;
 use CodeIgniter\HTTP\RequestInterface;
@@ -17,8 +18,7 @@ class AuthenticatedReportsFilter implements FilterInterface
         }
 
         $session = session();
-        if ((bool) $session->get('user_authenticated')
-            || (bool) $session->get('admin_logged_in')) {
+        if (UserAuthorization::isAuthenticated()) {
             return null;
         }
 

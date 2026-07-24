@@ -13,13 +13,24 @@ Estas regras complementam o `AGENTS.md` da raiz para arquivos em `app/`.
 
 ## Autenticação e autorização
 
-- Mantenha separados:
-  - acesso administrativo local;
-  - sessão autenticada para relatórios;
-  - autenticação pelo Active Directory.
-- Nunca use apenas a presença de um nome de usuário para conceder autorização.
-- Sessões AD devem usar perfil não administrativo.
-- Rotas administrativas devem validar uma sessão administrativa local.
+- Mantenha separados o mecanismo de autenticação e a autorização por papel.
+- Contas locais e contas autenticadas pelo AD devem usar o mesmo modelo de
+  autorização e os mesmos papéis: `Usuário`, `Editor` e `Administrador`.
+- A autenticação pelo AD não concede nem impede privilégios por si só.
+- Ao provisionar um novo usuário, inclusive do AD, atribua por padrão o papel
+  `Usuário`; qualquer elevação deve ser explícita no controle de usuários.
+- Nunca use apenas a presença, origem ou nome de um usuário para conceder
+  autorização.
+- `Usuário` pode consultar relatórios e informações dos hosts, mas todas as
+  operações de escrita devem ser negadas.
+- `Editor` pode criar, alterar e excluir informações dos hosts, mas não pode
+  alterar configurações do sistema.
+- `Administrador` pode criar, alterar e excluir informações dos hosts e alterar
+  configurações do sistema.
+- Rotas administrativas devem exigir o papel `Administrador`, seja a conta
+  local ou proveniente do AD.
+- Endpoints de criação, alteração e exclusão de hosts devem exigir ao menos o
+  papel `Editor`; não confie apenas em controles ocultos na interface.
 - Rotas protegidas de relatórios devem retornar o usuário à URL interna
   originalmente solicitada depois do login.
 - Logout deve remover todos os campos de sessão pertencentes ao fluxo
@@ -52,8 +63,11 @@ Estas regras complementam o `AGENTS.md` da raiz para arquivos em `app/`.
 - Escape todo conteúdo dinâmico com `esc`.
 - Formulários de escrita devem incluir `csrf_field()`.
 - Preserve o aviso temático de banco indisponível.
-- A engrenagem administrativa deve aparecer para visitantes e administradores
-  locais, mas não para usuários AD.
+- A engrenagem administrativa e os controles de configuração devem aparecer
+  apenas para usuários com papel `Administrador`, independentemente de a conta
+  ser local ou do AD.
+- Controles de criação, alteração e exclusão de hosts devem aparecer somente
+  para `Editor` e `Administrador`.
 - Novos controles devem ser responsivos e seguir os componentes Bootstrap já
   usados pelo projeto.
 

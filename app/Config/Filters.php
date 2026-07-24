@@ -4,6 +4,7 @@ namespace Config;
 
 use App\Filters\DatabaseAvailabilityFilter;
 use App\Filters\AuthenticatedReportsFilter;
+use App\Filters\RoleAuthorizationFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\CSRF;
@@ -29,6 +30,7 @@ class Filters extends BaseFilters
         'performance'       => PerformanceMetrics::class,
         'databaseAvailable' => DatabaseAvailabilityFilter::class,
         'authenticatedReports' => AuthenticatedReportsFilter::class,
+        'role'               => RoleAuthorizationFilter::class,
     ];
 
     public array $globals = [

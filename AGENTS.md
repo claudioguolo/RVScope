@@ -44,8 +44,18 @@ escopo.
   e chave mantida fora do Git.
 - LDAPS deve validar o certificado TLS. Nunca desabilite a validação para fazer
   um teste passar.
-- Usuários autenticados pelo AD podem acessar relatórios, mas não recebem
-  privilégios administrativos.
+- A origem da autenticação não determina autorização: usuários locais e do AD
+  devem usar o mesmo controle de papéis.
+- Novos usuários, inclusive os autenticados pelo AD, recebem por padrão o papel
+  `Usuário`, salvo atribuição explícita diferente no controle de usuários.
+- O papel `Usuário` permite consultar relatórios e informações dos hosts, sem
+  alterar dados ou configurações.
+- Os papéis `Editor` e `Administrador` permitem criar, alterar e excluir
+  informações dos hosts.
+- Somente o papel `Administrador` permite alterar configurações do sistema.
+- Usuários locais ou do AD só recebem privilégios administrativos quando
+  estiverem explicitamente marcados como `Administrador` no controle de
+  usuários.
 - Redirecionamentos após login devem aceitar apenas destinos internos gerados
   pela aplicação.
 
