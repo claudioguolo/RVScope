@@ -57,13 +57,13 @@ fi
 # 2. Sincronização de arquivos customizados do Volume /srv/app
 if [ -d "$CUSTOM_APP" ]; then
     echo "Sincronizando arquivos de $CUSTOM_APP para $APP_ROOT..."
-    mkdir -p "$APP_ROOT/app/Controllers" "$APP_ROOT/app/Models" "$APP_ROOT/app/Libraries" \
+    mkdir -p "$APP_ROOT/app/Commands" "$APP_ROOT/app/Controllers" "$APP_ROOT/app/Models" "$APP_ROOT/app/Libraries" \
              "$APP_ROOT/app/Database/Migrations" "$APP_ROOT/app/Views" "$APP_ROOT/app/Filters" \
              "$APP_ROOT/app/Config" \
              "$APP_ROOT/public"
 
     # Sincroniza subpastas se existirem
-    for dir in Controllers Models Libraries Database/Migrations Views Filters; do
+    for dir in Commands Controllers Models Libraries Database/Migrations Views Filters; do
         if [ -d "$CUSTOM_APP/$dir" ]; then
             cp -R "$CUSTOM_APP/$dir/." "$APP_ROOT/app/$dir"
         fi

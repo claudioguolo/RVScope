@@ -456,7 +456,7 @@ class RvtoolsImporter
                         $rawData,
                         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
                     ),
-                    'included_in_reports' => $included ? 1 : 0,
+                    'included_in_reports' => $included,
                     'imported_at' => $importedAt,
                 ];
 
