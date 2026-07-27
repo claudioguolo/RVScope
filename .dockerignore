@@ -8,6 +8,8 @@
 
 certs/
 imports/
+arquivos_csv/
+arquivos_csv.tar.gz
 writable/
 vendor/
 

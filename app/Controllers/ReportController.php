@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Libraries\UserAuthorization;
 use App\Models\HostInfoModel;
 use App\Models\RvtoolsOsSummaryModel;
+use App\Models\RvtoolsVmInventoryModel;
 use CodeIgniter\Controller;
 use Config\Rvtools as RvtoolsConfig;
 use DateTime;
@@ -46,9 +47,10 @@ class ReportController extends Controller
                        COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
                        COUNT(*) AS vm_count
                 FROM rvtools_vm_inventory inv
-                LEFT JOIN hosts_info info ON info.vm = inv.vm";
+                LEFT JOIN hosts_info info ON info.vm = inv.vm
+                WHERE inv.included_in_reports = TRUE";
         if ($legacyOnly) {
-            $sql .= " WHERE info.leg = 1";
+            $sql .= " AND info.leg = 1";
         }
         $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
                   ORDER BY inv.reference_date DESC, gerencia ASC";
@@ -139,19 +141,10 @@ class ReportController extends Controller
             $error = 'Gerencia invalida.';
         }
 
-        $csvPath = null;
-        if ($error === null) {
-            $csvPath = $this->findCsvPath($date);
-            if ($csvPath === null) {
-                $error = 'Nenhum arquivo CSV encontrado para esta data.';
-            }
-        }
-
         $rows = [];
         $newVmMap = [];
-        if ($error === null && $csvPath !== null) {
-            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
-            $rows = $this->filterRowsByInventoryDate($rows, $date);
+        if ($error === null) {
+            $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->filterRowsByGerencia($rows, $gerencia);
             if ($legacyOnly) {
                 $rows = $this->filterRowsByLegacy($rows);
@@ -181,6 +174,7 @@ class ReportController extends Controller
             "SELECT inv.reference_date, COUNT(*) AS vm_count
              FROM rvtools_vm_inventory inv
              INNER JOIN hosts_info info ON info.vm = inv.vm AND info.mig = 1
+             WHERE inv.included_in_reports = TRUE
              GROUP BY inv.reference_date
             ORDER BY inv.reference_date DESC"
         )->getResultArray();
@@ -243,19 +237,10 @@ class ReportController extends Controller
             $error = 'Data invalida.';
         }
 
-        $csvPath = null;
-        if ($error === null) {
-            $csvPath = $this->findCsvPath($date);
-            if ($csvPath === null) {
-                $error = 'Nenhum arquivo CSV encontrado para esta data.';
-            }
-        }
-
         $rows = [];
         $newVmMap = [];
-        if ($error === null && $csvPath !== null) {
-            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
-            $rows = $this->filterRowsByInventoryDate($rows, $date);
+        if ($error === null) {
+            $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->filterRowsByMigrable($rows);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
@@ -280,6 +265,7 @@ class ReportController extends Controller
             "SELECT inv.reference_date, COUNT(*) AS vm_count
              FROM rvtools_vm_inventory inv
              INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
+             WHERE inv.included_in_reports = TRUE
              GROUP BY inv.reference_date
             ORDER BY inv.reference_date DESC"
         )->getResultArray();
@@ -319,9 +305,10 @@ class ReportController extends Controller
                        COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
                        COUNT(*) AS vm_count
                 FROM rvtools_vm_inventory inv
-                INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1";
+                INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
+                WHERE inv.included_in_reports = TRUE";
         if ($legacyOnly) {
-            $sql .= " WHERE info.leg = 1";
+            $sql .= " AND info.leg = 1";
         }
         $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
                   ORDER BY inv.reference_date DESC, gerencia ASC";
@@ -409,18 +396,10 @@ class ReportController extends Controller
             $error = 'Data invalida.';
         }
 
-        $csvPath = null;
-        if ($error === null) {
-            $csvPath = $this->findCsvPath($date);
-            if ($csvPath === null) {
-                $error = 'Nenhum arquivo CSV encontrado para esta data.';
-            }
-        }
-
         $rows = [];
         $newVmMap = [];
-        if ($error === null && $csvPath !== null) {
-            $rows = $this->parseCsvRows($csvPath, '', $infoMap, $error);
+        if ($error === null) {
+            $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->filterRowsByAppliance($rows);
             if ($legacyOnly) {
                 $rows = $this->filterRowsByLegacy($rows);
@@ -483,18 +462,10 @@ class ReportController extends Controller
             $error = 'Data invalida.';
         }
 
-        $csvPath = null;
-        if ($error === null) {
-            $csvPath = $this->findCsvPath($date);
-            if ($csvPath === null) {
-                $error = 'Nenhum arquivo CSV encontrado para esta data.';
-            }
-        }
-
         $rows = [];
         $newVmMap = [];
-        if ($error === null && $csvPath !== null) {
-            $rows = $this->parseCsvRows($csvPath, $osName, $infoMap, $error);
+        if ($error === null) {
+            $rows = $this->loadInventoryRows($date, $osName, $infoMap, $error);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
@@ -524,11 +495,14 @@ class ReportController extends Controller
         $builder->select('cur.vm');
         $builder->join(
             'rvtools_vm_inventory as prev',
-            'prev.vm = cur.vm AND prev.reference_date = ' . $db->escape($previousDate),
+            'prev.vm = cur.vm
+             AND prev.reference_date = ' . $db->escape($previousDate) . '
+             AND prev.included_in_reports = TRUE',
             'left',
             false
         );
         $builder->where('cur.reference_date', $date);
+        $builder->where('cur.included_in_reports', true);
         $builder->where('prev.vm IS NULL', null, false);
 
         $rows = $builder->get()->getResultArray();
@@ -689,6 +663,7 @@ class ReportController extends Controller
         $inventoryRows = $db->table('rvtools_vm_inventory')
             ->select('vm')
             ->where('reference_date', $date)
+            ->where('included_in_reports', true)
             ->get()
             ->getResultArray();
 
@@ -847,6 +822,79 @@ class ReportController extends Controller
         }
 
         return $map;
+    }
+
+    private function loadInventoryRows(
+        string $date,
+        string $osFilter,
+        array $infoMap,
+        ?string &$error,
+    ): array {
+        $inventoryModel = new RvtoolsVmInventoryModel();
+        $inventoryModel
+            ->select(
+                'vm, dns_name, primary_ip, os_name, os_name_raw, creation_date_raw, '
+                . 'annotation, source_filename'
+            )
+            ->where('reference_date', $date)
+            ->where('included_in_reports', true)
+            ->orderBy('vm', 'ASC');
+
+        if ($osFilter !== '') {
+            $inventoryModel->where('os_name', $osFilter);
+        }
+
+        $inventoryRows = $inventoryModel->findAll();
+        if ($inventoryRows === []) {
+            $error = 'Nenhum dado de inventário encontrado para esta data.';
+            return [];
+        }
+
+        $hasCompleteSnapshot = false;
+        foreach ($inventoryRows as $inventoryRow) {
+            if (trim((string) ($inventoryRow['source_filename'] ?? '')) !== '') {
+                $hasCompleteSnapshot = true;
+                break;
+            }
+        }
+
+        if (! $hasCompleteSnapshot) {
+            $csvPath = $this->findCsvPath($date);
+            if ($csvPath !== null) {
+                $rows = $this->parseCsvRows($csvPath, $osFilter, $infoMap, $error);
+                return $this->filterRowsByInventoryDate($rows, $date);
+            }
+
+            $error = 'Os detalhes desta data ainda não foram migrados para o banco de dados.';
+            return [];
+        }
+
+        $rows = [];
+        foreach ($inventoryRows as $inventoryRow) {
+            $vm = trim((string) ($inventoryRow['vm'] ?? ''));
+            if ($vm === '') {
+                continue;
+            }
+
+            $info = $infoMap[$vm] ?? $this->defaultInfo();
+            $rows[] = [
+                'vm' => $vm,
+                'dns' => (string) ($inventoryRow['dns_name'] ?? ''),
+                'ip' => (string) ($inventoryRow['primary_ip'] ?? ''),
+                'os' => (string) (
+                    ($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')
+                ),
+                'creation' => $this->resolveCreationDate(
+                    $vm,
+                    (string) ($inventoryRow['creation_date_raw'] ?? ''),
+                    $infoMap,
+                ),
+                'annotation' => (string) ($inventoryRow['annotation'] ?? ''),
+                'info' => $info,
+            ];
+        }
+
+        return $rows;
     }
 
     private function findCsvPath(string $date): ?string

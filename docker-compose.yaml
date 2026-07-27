@@ -14,4 +14,5 @@ services:
       - ./.env:/var/www/html/.env:Z
       - ./writable:/var/www/html/writable:Z
       - ./imports:/app/imports:Z
+      - ./arquivos_csv:/app/arquivos_csv:ro,Z
       - ./certs:/etc/ssl/private:ro,Z

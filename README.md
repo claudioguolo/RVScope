@@ -200,6 +200,38 @@ curl -k -u "admin:troque-esta-senha" -X POST https://localhost:8443/index.php/im
 Para salvar alteracoes nas telas de detalhe, o navegador solicitara autenticacao HTTP Basic
 com `security.adminUser` e `security.adminPassword`.
 
+### Inventário persistido e backfill histórico
+
+Após a migration `ExpandRvtoolsInventorySnapshots`, a importação diária
+persiste no PostgreSQL os campos usados pelos relatórios e a linha completa do
+CSV em `raw_data` (`JSONB`). A página principal continua consultando somente
+os resumos; listagens, detalhes e exportações carregam o inventário quando suas
+rotas são acessadas.
+
+Os arquivos históricos permanecem fora do Git em `arquivos_csv/`. O Compose
+monta esse diretório em modo somente leitura em `/app/arquivos_csv`.
+
+Analise o backfill sem modificar dados:
+
+```bash
+docker compose exec app php spark rvscope:backfill-csv \
+  --path /app/arquivos_csv
+```
+
+Para executar:
+
+```bash
+docker compose exec app php spark rvscope:backfill-csv \
+  --path /app/arquivos_csv \
+  --execute \
+  --confirm BACKFILL
+```
+
+O comando escolhe o arquivo de nome mais recente de cada data e substitui cada
+data em uma transação independente. Falhas preservam os dados anteriores da
+data afetada. Execuções repetidas ignoram snapshots já preenchidos pelo mesmo
+arquivo, permitindo retomada segura.
+
 ## SSL (HTTPS 8443)
 Gere certificado local (dev):
 

@@ -10,9 +10,12 @@ vendor/
 
 # data files
 *.db
+.DS_Store
 
 # app imports
 imports/
+arquivos_csv/
+arquivos_csv.tar.gz
 
 # compose exclusivo do ambiente de desenvolvimento local
 docker-compose.dev.yaml
