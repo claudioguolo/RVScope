@@ -38,6 +38,16 @@ class ImportController extends Controller
         return $this->response->setJSON($result);
     }
 
+    public function api()
+    {
+        $result = (new RvtoolsImporter())->importAll();
+        $hasErrors = ($result['errors'] ?? []) !== [];
+
+        return $this->response
+            ->setStatusCode($hasErrors ? 422 : 200)
+            ->setJSON($result);
+    }
+
     private function prefersHtmlResponse(): bool
     {
         $accept = strtolower($this->request->getHeaderLine('Accept'));

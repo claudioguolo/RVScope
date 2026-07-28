@@ -252,6 +252,31 @@ data em uma transação independente. Falhas preservam os dados anteriores da
 data afetada. Execuções repetidas ignoram snapshots já preenchidos pelo mesmo
 arquivo, permitindo retomada segura.
 
+### Importação automatizada sem sessão de usuário
+
+A tela `/import` continua restrita a Editor e Administrador. Para uma rotina
+externa sem sessão de usuário, configure no `.env` um token exclusivo com pelo
+menos 32 caracteres:
+
+```dotenv
+security.importToken="TOKEN_ALEATORIO_EXCLUSIVO"
+```
+
+Gere o valor fora do Git, por exemplo com `openssl rand -hex 32`, e não reutilize
+senhas de usuários, banco, AD ou SMTP. A rotina pode então executar:
+
+```bash
+curl --fail --silent --show-error \
+  --request POST \
+  --header "Authorization: Bearer ${RVSCOPE_IMPORT_TOKEN}" \
+  https://rvscope.exemplo/index.php/api/import
+```
+
+O endpoint usa a mesma importação completa e transacional da interface, lendo
+`/app/imports`. Arquivos já importados com snapshot completo são ignorados. O
+token deve ficar em arquivo protegido ou cofre de segredos da automação, nunca
+diretamente no crontab ou no repositório.
+
 ## SSL (HTTPS 8443)
 Gere certificado local (dev):
 

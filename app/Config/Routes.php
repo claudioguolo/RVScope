@@ -55,6 +55,7 @@ $routes->group('import', ['filter' => 'role:editor,admin'], static function ($ro
     $routes->get('', 'ImportController::form');
     $routes->post('', 'ImportController::index', ['filter' => 'csrf']);
 });
+$routes->post('api/import', 'ImportController::api', ['filter' => 'importToken']);
 
 if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
     require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';

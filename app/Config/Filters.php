@@ -4,6 +4,7 @@ namespace Config;
 
 use App\Filters\DatabaseAvailabilityFilter;
 use App\Filters\AuthenticatedReportsFilter;
+use App\Filters\ImportTokenFilter;
 use App\Filters\RoleAuthorizationFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
@@ -30,6 +31,7 @@ class Filters extends BaseFilters
         'performance'       => PerformanceMetrics::class,
         'databaseAvailable' => DatabaseAvailabilityFilter::class,
         'authenticatedReports' => AuthenticatedReportsFilter::class,
+        'importToken'        => ImportTokenFilter::class,
         'role'               => RoleAuthorizationFilter::class,
     ];
 
