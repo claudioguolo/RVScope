@@ -83,11 +83,13 @@ target_psql() {
 source_psql() {
     docker exec "$SOURCE_CONTAINER" \
         sh -c '
+            database="$1"
+            shift
             exec psql \
                 --no-psqlrc \
                 --set ON_ERROR_STOP=1 \
                 --username "$POSTGRES_USER" \
-                --dbname "$1" \
+                --dbname "$database" \
                 "$@"
         ' sh "$SOURCE_DATABASE" "$@"
 }
