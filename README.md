@@ -116,6 +116,22 @@ docker volume ls | grep rvscope
 docker compose up -d
 ```
 
+Para copiar com segurança o banco PostgreSQL atual para uma instância vazia de
+homologação, sem armazenar a senha no repositório:
+
+```bash
+./scripts/migrate_postgres_database.sh
+
+./scripts/migrate_postgres_database.sh \
+  --execute \
+  --confirm RVScopeHom
+```
+
+O primeiro comando apenas valida origem, conexão e se o destino está vazio. O
+segundo gera um dump customizado, valida seu catálogo, restaura em uma única
+transação e compara as contagens das tabelas principais. A senha do destino é
+solicitada sem eco.
+
 ## Migrations
 ```bash
 docker compose exec app php /var/www/html/spark migrate
@@ -201,6 +217,10 @@ Para salvar alteracoes nas telas de detalhe, o navegador solicitara autenticacao
 com `security.adminUser` e `security.adminPassword`.
 
 ### Inventário persistido e backfill histórico
+
+O procedimento completo e validado para promover a aplicação e migrar o
+histórico em produção está em
+[`docs/runbook-producao.md`](docs/runbook-producao.md).
 
 Após a migration `ExpandRvtoolsInventorySnapshots`, a importação diária
 persiste no PostgreSQL os campos usados pelos relatórios e a linha completa do
