@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\UserAuthorization;
 use App\Models\HostInfoModel;
+use App\Models\HostRemovalReasonModel;
 use App\Models\RvtoolsOsSummaryModel;
 use App\Models\RvtoolsVmInventoryModel;
 use CodeIgniter\Controller;
@@ -132,6 +133,9 @@ class ReportController extends Controller
                 $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
             }
         }
+        if ($method === 'POST' && $this->request->getPost('save_removal_reason') !== null) {
+            $alert = $this->handleRemovalReasonSave($date);
+        }
 
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             $error = 'Data invalida.';
@@ -232,6 +236,9 @@ class ReportController extends Controller
             } else {
                 $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
             }
+        }
+        if ($method === 'POST' && $this->request->getPost('save_removal_reason') !== null) {
+            $alert = $this->handleRemovalReasonSave($date);
         }
 
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -393,6 +400,9 @@ class ReportController extends Controller
                 $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
             }
         }
+        if ($method === 'POST' && $this->request->getPost('save_removal_reason') !== null) {
+            $alert = $this->handleRemovalReasonSave($date);
+        }
 
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             $error = 'Data invalida.';
@@ -459,6 +469,9 @@ class ReportController extends Controller
             } else {
                 $alert = ['type' => 'danger', 'message' => 'Erro: ' . $saveResult['message']];
             }
+        }
+        if ($method === 'POST' && $this->request->getPost('save_removal_reason') !== null) {
+            $alert = $this->handleRemovalReasonSave($date);
         }
 
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -1041,6 +1054,7 @@ class ReportController extends Controller
         }
         $builder->orderBy('previous_inventory.vm', 'ASC');
 
+        $removalReasons = (new HostRemovalReasonModel())->reasonsForDate($date);
         $removedRows = [];
         foreach ($builder->get()->getResultArray() as $inventoryRow) {
             $vm = trim((string) ($inventoryRow['vm'] ?? ''));
@@ -1064,6 +1078,7 @@ class ReportController extends Controller
                 'annotation' => (string) ($inventoryRow['annotation'] ?? ''),
                 'info' => $info,
                 'is_removed' => true,
+                'removal_reason' => $removalReasons[$vm] ?? '',
             ];
         }
 
@@ -1072,6 +1087,69 @@ class ReportController extends Controller
         }
 
         return array_merge($rows, $removedRows);
+    }
+
+    private function handleRemovalReasonSave(string $date): array
+    {
+        if (! UserAuthorization::canEditHosts()) {
+            return [
+                'type' => 'danger',
+                'message' => 'Seu perfil permite apenas consultar o motivo da remoção.',
+            ];
+        }
+
+        $vm = trim((string) ($this->request->getPost('vm') ?? ''));
+        $reason = trim((string) ($this->request->getPost('removal_reason') ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $vm === '') {
+            return ['type' => 'danger', 'message' => 'Host ou data de remoção inválidos.'];
+        }
+        if ($reason === '') {
+            return ['type' => 'danger', 'message' => 'Informe o motivo da remoção.'];
+        }
+        if (mb_strlen($reason) > 2000) {
+            return ['type' => 'danger', 'message' => 'O motivo deve ter no máximo 2000 caracteres.'];
+        }
+        if (! $this->isVmRemovedForDate($date, $vm)) {
+            return ['type' => 'danger', 'message' => 'O host informado não está removido nesta data.'];
+        }
+
+        try {
+            (new HostRemovalReasonModel())->setReason(
+                $date,
+                $vm,
+                $reason,
+                (string) (session('auth_username') ?: session('admin_username') ?: ''),
+            );
+        } catch (\Throwable $exception) {
+            log_message('error', 'Falha ao salvar motivo de remoção: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            return ['type' => 'danger', 'message' => 'Não foi possível salvar o motivo da remoção.'];
+        }
+
+        return ['type' => 'success', 'message' => 'Motivo da remoção salvo com sucesso.'];
+    }
+
+    private function isVmRemovedForDate(string $date, string $vm): bool
+    {
+        $previousDate = $this->findPreviousDate($date);
+        if ($previousDate === null) {
+            return false;
+        }
+
+        $db = db_connect();
+        $previousExists = $db->table('rvtools_vm_inventory')
+            ->where('reference_date', $previousDate)
+            ->where('vm', $vm)
+            ->where('included_in_reports', true)
+            ->countAllResults() > 0;
+        $currentExists = $db->table('rvtools_vm_inventory')
+            ->where('reference_date', $date)
+            ->where('vm', $vm)
+            ->where('included_in_reports', true)
+            ->countAllResults() > 0;
+
+        return $previousExists && ! $currentExists;
     }
 
     private function findCsvPath(string $date): ?string

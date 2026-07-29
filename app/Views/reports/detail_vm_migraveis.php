@@ -84,7 +84,14 @@
                                 <td><?= esc($row['creation'] ?? '') ?></td>
                                 <td>
                                     <?php if ($isRemoved): ?>
-                                        <span class="badge text-bg-secondary">Removido</span>
+                                        <button
+                                            type="button"
+                                            class="btn btn-secondary btn-sm text-decoration-none"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#removalReasonModal"
+                                            data-vm="<?= esc($row['vm'] ?? '', 'attr') ?>"
+                                            data-removal-reason="<?= esc($row['removal_reason'] ?? '', 'attr') ?>"
+                                        >Removido</button>
                                     <?php else: ?>
                                     <button
                                         type="button"
@@ -195,6 +202,7 @@
     </div>
 </div>
 
+<?= view('reports/_removal_reason_modal', ['date' => $date]) ?>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const infoModal = document.getElementById('infoModal');
