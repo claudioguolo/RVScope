@@ -75,7 +75,8 @@
                         <?php foreach ($rows as $index => $row): ?>
                             <?php $info = $row['info'] ?? []; ?>
                             <?php $isNew = !empty($newVmMap[$row['vm'] ?? '']); ?>
-                            <tr>
+                            <?php $isRemoved = !empty($row['is_removed']); ?>
+                            <tr class="<?= $isRemoved ? 'text-decoration-line-through text-body-secondary' : '' ?>">
                                 <td><?= esc((string) ($index + 1)) ?></td>
                                 <td>
                                     <?= esc($row['vm'] ?? '') ?>
@@ -93,6 +94,9 @@
                                 <td><?= esc($row['os'] ?? '') ?></td>
                                 <td><?= esc($row['creation'] ?? '') ?></td>
                                 <td>
+                                    <?php if ($isRemoved): ?>
+                                        <span class="badge text-bg-secondary">Removido</span>
+                                    <?php else: ?>
                                     <button
                                         type="button"
                                         class="btn btn-brand btn-sm"
@@ -110,6 +114,7 @@
                                         data-creation="<?= esc($row['creation'] ?? '', 'attr') ?>"
                                         data-annotation="<?= esc($row['annotation'] ?? '', 'attr') ?>"
                                     ><?= $canEditHosts ? 'Detalhes / Editar' : 'Detalhes' ?></button>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

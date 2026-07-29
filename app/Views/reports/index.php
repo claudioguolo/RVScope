@@ -42,10 +42,8 @@
                         if ($dt !== false) {
                             $displayDate = $dt->format('d-m-Y');
                         }
-                        $newVmCountDay = 0;
-                        foreach ($day['items'] as $item) {
-                            $newVmCountDay += (int) ($item['new_vm_count'] ?? 0);
-                        }
+                        $newVmCountDay = (int) ($day['new_vm_total'] ?? 0);
+                        $removedVmCountDay = (int) ($day['removed_vm_total'] ?? 0);
                     ?>
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="<?= esc($headingId) ?>">
@@ -57,6 +55,11 @@
                                 <?php if ($newVmCountDay > 0): ?>
                                 <span class="badge text-bg-danger ms-2" title="<?= esc($newVmCountDay . ($newVmCountDay === 1 ? ' VM nova' : ' VMs novas'), 'attr') ?>">
                                     <?= esc($newVmCountDay) ?>
+                                </span>
+                                <?php endif; ?>
+                                <?php if ($removedVmCountDay > 0): ?>
+                                <span class="badge text-bg-secondary ms-2" title="<?= esc($removedVmCountDay . ($removedVmCountDay === 1 ? ' VM removida' : ' VMs removidas'), 'attr') ?>">
+                                    -<?= esc($removedVmCountDay) ?>
                                 </span>
                                 <?php endif; ?>
                             </button>
@@ -83,9 +86,15 @@
                                                         <?= esc($row['os_name']) ?>
                                                     </a>
                                                     <?php $newVmCount = (int) ($row['new_vm_count'] ?? 0); ?>
+                                                    <?php $removedVmCount = (int) ($row['removed_vm_count'] ?? 0); ?>
                                                     <?php if ($newVmCount > 0): ?>
                                                         <span class="badge text-bg-danger ms-2" title="<?= esc($newVmCount . ($newVmCount === 1 ? ' VM nova' : ' VMs novas'), 'attr') ?>">
                                                             <?= esc($newVmCount) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <?php if ($removedVmCount > 0): ?>
+                                                        <span class="badge text-bg-secondary ms-2" title="<?= esc($removedVmCount . ($removedVmCount === 1 ? ' VM removida' : ' VMs removidas'), 'attr') ?>">
+                                                            -<?= esc($removedVmCount) ?>
                                                         </span>
                                                     <?php endif; ?>
                                                 </td>

@@ -145,6 +145,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
+            $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
             $rows = $this->filterRowsByGerencia($rows, $gerencia);
             if ($legacyOnly) {
                 $rows = $this->filterRowsByLegacy($rows);
@@ -241,6 +242,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
+            $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
             $rows = $this->filterRowsByMigrable($rows);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
@@ -400,6 +402,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
+            $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
             $rows = $this->filterRowsByAppliance($rows);
             if ($legacyOnly) {
                 $rows = $this->filterRowsByLegacy($rows);
@@ -466,6 +469,7 @@ class ReportController extends Controller
         $newVmMap = [];
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, $osName, $infoMap, $error);
+            $rows = $this->appendRemovedInventoryRows($rows, $date, $osName, $infoMap, $error);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
@@ -524,7 +528,7 @@ class ReportController extends Controller
         $rows = $model->orderBy('reference_date', 'DESC')
             ->orderBy('os_name', 'ASC')
             ->findAll();
-        $newVmCounts = $this->findNewVmCountsByDateAndOs();
+        $vmChangeCounts = $this->findVmChangeCountsByDateAndOs();
 
         $grouped = [];
         foreach ($rows as $row) {
@@ -534,14 +538,53 @@ class ReportController extends Controller
                     'reference_date' => $date,
                     'items' => [],
                     'total' => 0,
+                    'new_vm_total' => array_sum($vmChangeCounts['new'][$date] ?? []),
+                    'removed_vm_total' => array_sum($vmChangeCounts['removed'][$date] ?? []),
                 ];
             }
 
             $osName = (string) ($row['os_name'] ?? '');
-            $row['new_vm_count'] = $newVmCounts[$date][$osName] ?? 0;
+            $row['new_vm_count'] = $vmChangeCounts['new'][$date][$osName] ?? 0;
+            $row['removed_vm_count'] = $vmChangeCounts['removed'][$date][$osName] ?? 0;
             $row['has_new'] = $row['new_vm_count'] > 0;
             $grouped[$date]['items'][] = $row;
             $grouped[$date]['total'] += (int) $row['vm_count'];
+        }
+
+        foreach ($vmChangeCounts['removed'] as $date => $osCounts) {
+            if (!isset($grouped[$date])) {
+                continue;
+            }
+
+            $listedOsNames = array_fill_keys(
+                array_map(
+                    static fn(array $item): string => (string) ($item['os_name'] ?? ''),
+                    $grouped[$date]['items'],
+                ),
+                true,
+            );
+            foreach ($osCounts as $osName => $removedCount) {
+                if (isset($listedOsNames[$osName])) {
+                    continue;
+                }
+
+                $grouped[$date]['items'][] = [
+                    'reference_date' => $date,
+                    'os_name' => $osName,
+                    'vm_count' => 0,
+                    'new_vm_count' => 0,
+                    'removed_vm_count' => $removedCount,
+                    'has_new' => false,
+                ];
+            }
+
+            usort(
+                $grouped[$date]['items'],
+                static fn(array $left, array $right): int => strcasecmp(
+                    (string) ($left['os_name'] ?? ''),
+                    (string) ($right['os_name'] ?? ''),
+                ),
+            );
         }
 
         if ($this->request->getGet('export') === 'csv') {
@@ -550,8 +593,14 @@ class ReportController extends Controller
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_por_sistema_operacional' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
-                ['Data', 'Sistema Operacional', 'Quantidade de VMs', 'Quantidade de VMs novas'],
-                array_map(static function (array $row) use ($newVmCounts): array {
+                [
+                    'Data',
+                    'Sistema Operacional',
+                    'Quantidade de VMs',
+                    'Quantidade de VMs novas',
+                    'Quantidade de VMs removidas',
+                ],
+                array_map(static function (array $row) use ($vmChangeCounts): array {
                     $date = (string) ($row['reference_date'] ?? '');
                     $osName = (string) ($row['os_name'] ?? '');
 
@@ -559,7 +608,8 @@ class ReportController extends Controller
                         $date,
                         $osName,
                         (int) ($row['vm_count'] ?? 0),
-                        $newVmCounts[$date][$osName] ?? 0,
+                        $vmChangeCounts['new'][$date][$osName] ?? 0,
+                        $vmChangeCounts['removed'][$date][$osName] ?? 0,
                     ];
                 }, $exportRows)
             );
@@ -570,7 +620,7 @@ class ReportController extends Controller
         ]);
     }
 
-    private function findNewVmCountsByDateAndOs(): array
+    private function findVmChangeCountsByDateAndOs(): array
     {
         $sql = <<<'SQL'
             WITH inventory_dates AS (
@@ -581,33 +631,60 @@ class ReportController extends Controller
                     FROM rvtools_vm_inventory
                     WHERE included_in_reports = TRUE
                 ) dates
+            ),
+            inventory_changes AS (
+                SELECT current_inventory.reference_date,
+                       current_inventory.os_name,
+                       'new' AS change_type
+                FROM inventory_dates
+                INNER JOIN rvtools_vm_inventory current_inventory
+                    ON current_inventory.reference_date = inventory_dates.reference_date
+                   AND current_inventory.included_in_reports = TRUE
+                LEFT JOIN rvtools_vm_inventory previous_inventory
+                    ON previous_inventory.reference_date = inventory_dates.previous_date
+                   AND previous_inventory.vm = current_inventory.vm
+                   AND previous_inventory.included_in_reports = TRUE
+                WHERE inventory_dates.previous_date IS NOT NULL
+                  AND previous_inventory.id IS NULL
+
+                UNION ALL
+
+                SELECT inventory_dates.reference_date,
+                       previous_inventory.os_name,
+                       'removed' AS change_type
+                FROM inventory_dates
+                INNER JOIN rvtools_vm_inventory previous_inventory
+                    ON previous_inventory.reference_date = inventory_dates.previous_date
+                   AND previous_inventory.included_in_reports = TRUE
+                LEFT JOIN rvtools_vm_inventory current_inventory
+                    ON current_inventory.reference_date = inventory_dates.reference_date
+                   AND current_inventory.vm = previous_inventory.vm
+                   AND current_inventory.included_in_reports = TRUE
+                WHERE inventory_dates.previous_date IS NOT NULL
+                  AND current_inventory.id IS NULL
             )
-            SELECT current_inventory.reference_date,
-                   current_inventory.os_name,
-                   COUNT(*) AS new_vm_count
-            FROM inventory_dates
-            INNER JOIN rvtools_vm_inventory current_inventory
-                ON current_inventory.reference_date = inventory_dates.reference_date
-               AND current_inventory.included_in_reports = TRUE
-            LEFT JOIN rvtools_vm_inventory previous_inventory
-                ON previous_inventory.reference_date = inventory_dates.previous_date
-               AND previous_inventory.vm = current_inventory.vm
-               AND previous_inventory.included_in_reports = TRUE
-            WHERE inventory_dates.previous_date IS NOT NULL
-              AND previous_inventory.id IS NULL
-            GROUP BY current_inventory.reference_date, current_inventory.os_name
+            SELECT reference_date,
+                   os_name,
+                   change_type,
+                   COUNT(*) AS vm_count
+            FROM inventory_changes
+            GROUP BY reference_date, os_name, change_type
             SQL;
 
         $rows = db_connect()->query($sql)->getResultArray();
-        $counts = [];
+        $counts = [
+            'new' => [],
+            'removed' => [],
+        ];
         foreach ($rows as $row) {
             $date = (string) ($row['reference_date'] ?? '');
             $osName = (string) ($row['os_name'] ?? '');
-            if ($date === '' || $osName === '') {
+            $changeType = (string) ($row['change_type'] ?? '');
+            if ($date === '' || $osName === '' || !isset($counts[$changeType])) {
                 continue;
             }
 
-            $counts[$date][$osName] = (int) ($row['new_vm_count'] ?? 0);
+            $counts[$changeType][$date][$osName] = (int) ($row['vm_count'] ?? 0);
         }
 
         return $counts;
@@ -928,6 +1005,75 @@ class ReportController extends Controller
         return $rows;
     }
 
+    private function appendRemovedInventoryRows(
+        array $rows,
+        string $date,
+        string $osFilter,
+        array $infoMap,
+        ?string &$error,
+    ): array {
+        $previousDate = $this->findPreviousDate($date);
+        if ($previousDate === null) {
+            return $rows;
+        }
+
+        $db = db_connect();
+        $builder = $db->table('rvtools_vm_inventory as previous_inventory');
+        $builder->select(
+            'previous_inventory.vm, previous_inventory.dns_name, '
+            . 'previous_inventory.primary_ip, previous_inventory.os_name, '
+            . 'previous_inventory.os_name_raw, previous_inventory.creation_date_raw, '
+            . 'previous_inventory.annotation'
+        );
+        $builder->join(
+            'rvtools_vm_inventory as current_inventory',
+            'current_inventory.vm = previous_inventory.vm
+             AND current_inventory.reference_date = ' . $db->escape($date) . '
+             AND current_inventory.included_in_reports = TRUE',
+            'left',
+            false,
+        );
+        $builder->where('previous_inventory.reference_date', $previousDate);
+        $builder->where('previous_inventory.included_in_reports', true);
+        $builder->where('current_inventory.id IS NULL', null, false);
+        if ($osFilter !== '') {
+            $builder->where('previous_inventory.os_name', $osFilter);
+        }
+        $builder->orderBy('previous_inventory.vm', 'ASC');
+
+        $removedRows = [];
+        foreach ($builder->get()->getResultArray() as $inventoryRow) {
+            $vm = trim((string) ($inventoryRow['vm'] ?? ''));
+            if ($vm === '') {
+                continue;
+            }
+
+            $info = $infoMap[$vm] ?? $this->defaultInfo();
+            $removedRows[] = [
+                'vm' => $vm,
+                'dns' => (string) ($inventoryRow['dns_name'] ?? ''),
+                'ip' => (string) ($inventoryRow['primary_ip'] ?? ''),
+                'os' => (string) (
+                    ($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')
+                ),
+                'creation' => $this->resolveCreationDate(
+                    $vm,
+                    (string) ($inventoryRow['creation_date_raw'] ?? ''),
+                    $infoMap,
+                ),
+                'annotation' => (string) ($inventoryRow['annotation'] ?? ''),
+                'info' => $info,
+                'is_removed' => true,
+            ];
+        }
+
+        if ($removedRows !== [] && $rows === []) {
+            $error = null;
+        }
+
+        return array_merge($rows, $removedRows);
+    }
+
     private function findCsvPath(string $date): ?string
     {
         $importPath = $this->resolveImportPath();
@@ -1060,6 +1206,7 @@ class ReportController extends Controller
             "Migr\xc3\xa1vel",
             'Appliance',
             'Worker',
+            'Status',
         ], ';');
 
         $counter = 1;
@@ -1079,6 +1226,7 @@ class ReportController extends Controller
                 $info['mig'] ?? '0',
                 $info['app'] ?? '0',
                 $info['worker'] ?? 'none',
+                !empty($row['is_removed']) ? 'Removido' : 'Ativo',
             ], ';');
         }
 
