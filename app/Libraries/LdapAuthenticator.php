@@ -14,12 +14,19 @@ class LdapAuthenticator
 
     public function authenticate(string $username, string $password): bool
     {
-        if ($password === '' || ! function_exists('ldap_connect')) {
+        if ($password === '') {
+            log_message('warning', 'Autenticação LDAPS recusada: senha não informada.');
+            return false;
+        }
+
+        if (! function_exists('ldap_connect')) {
+            log_message('error', 'Autenticação LDAPS indisponível: extensão LDAP não carregada.');
             return false;
         }
 
         $username = strtolower(trim($username));
         if (! preg_match('/^[a-z0-9._-]+(?:@[a-z0-9.-]+)?$/i', $username)) {
+            log_message('warning', 'Autenticação LDAPS recusada: formato de usuário inválido.');
             return false;
         }
 
@@ -27,6 +34,10 @@ class LdapAuthenticator
         if (! $configuration['enabled']
             || $configuration['host'] === ''
             || $configuration['domain'] === '') {
+            log_message(
+                'warning',
+                'Autenticação LDAPS indisponível: integração desabilitada ou configuração incompleta.',
+            );
             return false;
         }
 
@@ -39,6 +50,7 @@ class LdapAuthenticator
 
         if (str_contains($bindUser, '@')
             && ! str_ends_with(strtolower($bindUser), '@' . $domain)) {
+            log_message('warning', 'Autenticação LDAPS recusada: domínio UPN diferente do configurado.');
             return false;
         }
 
@@ -51,6 +63,11 @@ class LdapAuthenticator
             ldap_set_option(null, LDAP_OPT_X_TLS_REQUIRE_CERT, LDAP_OPT_X_TLS_DEMAND);
             $connection = ldap_connect(sprintf('ldaps://%s:%d', $connectionHost, $port));
             if ($connection === false) {
+                log_message(
+                    'error',
+                    'Autenticação LDAPS indisponível: não foi possível inicializar a conexão com {host}:{port}.',
+                    ['host' => $host, 'port' => $port],
+                );
                 return false;
             }
 
@@ -59,6 +76,32 @@ class LdapAuthenticator
             ldap_set_option($connection, LDAP_OPT_NETWORK_TIMEOUT, 5);
 
             $authenticated = @ldap_bind($connection, $bindUser, $password);
+            if (! $authenticated) {
+                $diagnosticMessage = '';
+                @ldap_get_option($connection, LDAP_OPT_DIAGNOSTIC_MESSAGE, $diagnosticMessage);
+                $adCode = 'não informado';
+                if (preg_match('/\bdata\s+([0-9a-f]+)\b/i', $diagnosticMessage, $matches) === 1) {
+                    $adCode = strtolower($matches[1]);
+                }
+
+                log_message(
+                    'warning',
+                    'Falha no bind LDAPS em {host}:{port}: código LDAP {ldapCode}, erro "{ldapError}", código AD {adCode}.',
+                    [
+                        'host' => $host,
+                        'port' => $port,
+                        'ldapCode' => ldap_errno($connection),
+                        'ldapError' => ldap_error($connection),
+                        'adCode' => $adCode,
+                    ],
+                );
+            } else {
+                log_message(
+                    'notice',
+                    'Bind LDAPS concluído com sucesso em {host}:{port}.',
+                    ['host' => $host, 'port' => $port],
+                );
+            }
             ldap_unbind($connection);
 
             return $authenticated;
