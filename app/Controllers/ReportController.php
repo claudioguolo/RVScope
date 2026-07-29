@@ -524,6 +524,7 @@ class ReportController extends Controller
         $rows = $model->orderBy('reference_date', 'DESC')
             ->orderBy('os_name', 'ASC')
             ->findAll();
+        $newVmCounts = $this->findNewVmCountsByDateAndOs();
 
         $grouped = [];
         foreach ($rows as $row) {
@@ -536,7 +537,9 @@ class ReportController extends Controller
                 ];
             }
 
-            $row['has_new'] = $this->normalizeBool($row['has_new'] ?? false);
+            $osName = (string) ($row['os_name'] ?? '');
+            $row['new_vm_count'] = $newVmCounts[$date][$osName] ?? 0;
+            $row['has_new'] = $row['new_vm_count'] > 0;
             $grouped[$date]['items'][] = $row;
             $grouped[$date]['total'] += (int) $row['vm_count'];
         }
@@ -547,13 +550,16 @@ class ReportController extends Controller
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_por_sistema_operacional' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
-                ['Data', 'Sistema Operacional', 'Quantidade de VMs', 'Possui VM nova'],
-                array_map(static function (array $row): array {
+                ['Data', 'Sistema Operacional', 'Quantidade de VMs', 'Quantidade de VMs novas'],
+                array_map(static function (array $row) use ($newVmCounts): array {
+                    $date = (string) ($row['reference_date'] ?? '');
+                    $osName = (string) ($row['os_name'] ?? '');
+
                     return [
-                        $row['reference_date'] ?? '',
-                        $row['os_name'] ?? '',
+                        $date,
+                        $osName,
                         (int) ($row['vm_count'] ?? 0),
-                        !empty($row['has_new']) ? 'Sim' : 'Nao',
+                        $newVmCounts[$date][$osName] ?? 0,
                     ];
                 }, $exportRows)
             );
@@ -562,6 +568,49 @@ class ReportController extends Controller
         return view('reports/index', $context + [
             'days' => array_values($grouped),
         ]);
+    }
+
+    private function findNewVmCountsByDateAndOs(): array
+    {
+        $sql = <<<'SQL'
+            WITH inventory_dates AS (
+                SELECT reference_date,
+                       LAG(reference_date) OVER (ORDER BY reference_date) AS previous_date
+                FROM (
+                    SELECT DISTINCT reference_date
+                    FROM rvtools_vm_inventory
+                    WHERE included_in_reports = TRUE
+                ) dates
+            )
+            SELECT current_inventory.reference_date,
+                   current_inventory.os_name,
+                   COUNT(*) AS new_vm_count
+            FROM inventory_dates
+            INNER JOIN rvtools_vm_inventory current_inventory
+                ON current_inventory.reference_date = inventory_dates.reference_date
+               AND current_inventory.included_in_reports = TRUE
+            LEFT JOIN rvtools_vm_inventory previous_inventory
+                ON previous_inventory.reference_date = inventory_dates.previous_date
+               AND previous_inventory.vm = current_inventory.vm
+               AND previous_inventory.included_in_reports = TRUE
+            WHERE inventory_dates.previous_date IS NOT NULL
+              AND previous_inventory.id IS NULL
+            GROUP BY current_inventory.reference_date, current_inventory.os_name
+            SQL;
+
+        $rows = db_connect()->query($sql)->getResultArray();
+        $counts = [];
+        foreach ($rows as $row) {
+            $date = (string) ($row['reference_date'] ?? '');
+            $osName = (string) ($row['os_name'] ?? '');
+            if ($date === '' || $osName === '') {
+                continue;
+            }
+
+            $counts[$date][$osName] = (int) ($row['new_vm_count'] ?? 0);
+        }
+
+        return $counts;
     }
 
     private function normalizeGerencia(string $value): string
@@ -692,24 +741,6 @@ class ReportController extends Controller
         }
 
         return $filtered;
-    }
-
-    private function normalizeBool($value): bool
-    {
-        if (is_bool($value)) {
-            return $value;
-        }
-
-        if (is_int($value)) {
-            return $value === 1;
-        }
-
-        if (is_string($value)) {
-            $normalized = strtolower(trim($value));
-            return in_array($normalized, ['1', 't', 'true', 'yes', 'y'], true);
-        }
-
-        return false;
     }
 
     private function findPreviousDate(string $date): ?string

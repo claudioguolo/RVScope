@@ -42,12 +42,9 @@
                         if ($dt !== false) {
                             $displayDate = $dt->format('d-m-Y');
                         }
-                        $hasNewDay = false;
+                        $newVmCountDay = 0;
                         foreach ($day['items'] as $item) {
-                            if (!empty($item['has_new'])) {
-                                $hasNewDay = true;
-                                break;
-                            }
+                            $newVmCountDay += (int) ($item['new_vm_count'] ?? 0);
                         }
                     ?>
                     <div class="accordion-item">
@@ -57,8 +54,10 @@
                                     aria-expanded="<?= $index === 0 ? 'true' : 'false' ?>"
                                     aria-controls="<?= esc($collapseId) ?>">
 <?= esc($displayDate) ?>
-                                <?php if ($hasNewDay): ?>
-                                <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
+                                <?php if ($newVmCountDay > 0): ?>
+                                <span class="badge text-bg-danger ms-2" title="<?= esc($newVmCountDay . ($newVmCountDay === 1 ? ' VM nova' : ' VMs novas'), 'attr') ?>">
+                                    <?= esc($newVmCountDay) ?>
+                                </span>
                                 <?php endif; ?>
                             </button>
                         </h2>
@@ -83,8 +82,11 @@
                                                     <a href="<?= site_url('reports/detail?date=' . urlencode($day['reference_date']) . '&os=' . urlencode($row['os_name'])) ?>">
                                                         <?= esc($row['os_name']) ?>
                                                     </a>
-                                                    <?php if (!empty($row['has_new'])): ?>
-                                                        <span class="text-danger small ms-2" title="VM nova">&#9679;</span>
+                                                    <?php $newVmCount = (int) ($row['new_vm_count'] ?? 0); ?>
+                                                    <?php if ($newVmCount > 0): ?>
+                                                        <span class="badge text-bg-danger ms-2" title="<?= esc($newVmCount . ($newVmCount === 1 ? ' VM nova' : ' VMs novas'), 'attr') ?>">
+                                                            <?= esc($newVmCount) ?>
+                                                        </span>
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="text-end"><?= esc($row['vm_count']) ?></td>
