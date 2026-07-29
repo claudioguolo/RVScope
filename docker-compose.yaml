@@ -16,3 +16,4 @@ services:
       - ./imports:/app/imports:Z
       - ./arquivos_csv:/app/arquivos_csv:ro,Z
       - ./certs:/etc/ssl/private:ro,Z
+      - ./certs/ad-ca.crt:/etc/ssl/certs/rvscope-ad-ca.crt:ro,Z

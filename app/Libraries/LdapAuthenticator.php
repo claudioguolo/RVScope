@@ -56,7 +56,7 @@ class LdapAuthenticator
 
         try {
             $connectionHost = str_contains($host, ':') ? '[' . $host . ']' : $host;
-            $caCertificate = '/etc/ssl/private/ad-ca.crt';
+            $caCertificate = '/etc/ssl/certs/rvscope-ad-ca.crt';
             if (is_file($caCertificate)) {
                 ldap_set_option(null, LDAP_OPT_X_TLS_CACERTFILE, $caCertificate);
             }

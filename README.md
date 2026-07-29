@@ -75,8 +75,8 @@ habilitada com o host do controlador, porta (normalmente `636`) e domínio UPN.
 O bind usa a própria senha do usuário; nenhuma senha de serviço é armazenada.
 Usuários do AD recebem acesso somente aos relatórios, nunca à administração.
 A validação do certificado TLS é obrigatória. Se o domínio usar uma CA interna,
-salve sua cadeia pública em `certs/ad-ca.crt`; esse diretório já é montado na
-imagem em `/etc/ssl/private`.
+salve sua cadeia pública em `certs/ad-ca.crt`; o arquivo é montado na imagem
+como `/etc/ssl/certs/rvscope-ad-ca.crt`, legível pelo processo da aplicação.
 
 A seção **Conta remetente SMTP** permite configurar o servidor, segurança,
 usuário, senha e identidade do remetente das notificações. A senha é armazenada
