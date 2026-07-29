@@ -8,6 +8,8 @@ services:
       CI_ENVIRONMENT: ${CI_ENVIRONMENT:-production}
       APP_STAGE: ${APP_STAGE:-homologation}
       APP_IMAGE_TAG: ${RVSCOPE_IMAGE_TAG:-homolog}
+      LDAPTLS_CACERT: /etc/ssl/certs/rvscope-ad-ca.crt
+      LDAPTLS_REQCERT: demand
     ports:
       - "8443:8443"
     volumes:
