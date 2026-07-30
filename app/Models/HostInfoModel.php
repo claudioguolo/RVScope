@@ -16,13 +16,17 @@ class HostInfoModel extends Model
         'vm',
         'desc',
         'gerencia',
+        'management_unit_id',
         'owner',
+        'technical_responsible_id',
         'conv',
         'leg',
         'mig',
+        'migration_target',
         'app',
         'worker',
         'creation_date',
+        'os_last_update_date',
         'updated_at',
     ];
 }

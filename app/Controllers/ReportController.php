@@ -5,8 +5,11 @@ namespace App\Controllers;
 use App\Libraries\UserAuthorization;
 use App\Models\HostInfoModel;
 use App\Models\HostRemovalReasonModel;
+use App\Models\ManagementUnitModel;
+use App\Models\ManagementUnitTechnicalResponsibleModel;
 use App\Models\RvtoolsOsSummaryModel;
 use App\Models\RvtoolsVmInventoryModel;
+use App\Models\TechnicalResponsibleModel;
 use CodeIgniter\Controller;
 use Config\Rvtools as RvtoolsConfig;
 use DateTime;
@@ -169,7 +172,7 @@ class ReportController extends Controller
             'error' => $error,
             'newVmMap' => $newVmMap,
             'legacyOnly' => $legacyOnly,
-        ]);
+        ] + $this->hostCatalogViewData());
     }
 
     public function vmMigraveis()
@@ -264,7 +267,7 @@ class ReportController extends Controller
             'alert' => $alert,
             'error' => $error,
             'newVmMap' => $newVmMap,
-        ]);
+        ] + $this->hostCatalogViewData());
     }
 
     public function appliancesTodos()
@@ -436,7 +439,7 @@ class ReportController extends Controller
             'newVmMap' => $newVmMap,
             'legacyOnly' => $legacyOnly,
             'allGerencias' => $allGerencias,
-        ]);
+        ] + $this->hostCatalogViewData());
     }
 
     public function detail()
@@ -497,7 +500,7 @@ class ReportController extends Controller
             'alert' => $alert,
             'error' => $error,
             'newVmMap' => $newVmMap,
-        ]);
+        ] + $this->hostCatalogViewData());
     }
 
     private function findNewVmsForDateFromDb(string $date): array
@@ -860,10 +863,20 @@ class ReportController extends Controller
         }
 
         $desc = trim((string) ($this->request->getPost('desc') ?? ''));
-        $gerencia = trim((string) ($this->request->getPost('gerencia') ?? ''));
-        $owner = trim((string) ($this->request->getPost('owner') ?? ''));
+        $managementUnitId = (int) ($this->request->getPost('management_unit_id') ?? 0);
+        $technicalResponsibleId = (int) ($this->request->getPost('technical_responsible_id') ?? 0);
+        $gerencia = 'Sem registro';
+        $owner = 'Sem registro';
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
+        $osLastUpdateDate = trim((string) ($this->request->getPost('os_last_update_date') ?? ''));
+        $migrationTarget = strtolower(trim(
+            (string) ($this->request->getPost('migration_target') ?? 'none')
+        ));
+        $allowedMigrationTargets = ['none', 'other_host', 'openshift'];
+        if (! in_array($migrationTarget, $allowedMigrationTargets, true)) {
+            $migrationTarget = 'none';
+        }
         $worker = strtolower(trim((string) ($this->request->getPost('worker') ?? 'none')));
         $allowedWorkers = ['none', 'openshift', 'rancher'];
         if (! in_array($worker, $allowedWorkers, true)) {
@@ -871,41 +884,72 @@ class ReportController extends Controller
         }
 
         $desc = str_replace(';', ',', $desc);
-        $gerencia = str_replace(';', ',', $gerencia);
-        $owner = str_replace(';', ',', $owner);
         $conv = str_replace(';', ',', $conv);
 
-        $allowedGerencias = [
-            'Sem registro',
-            'Administração de Banco de Dados',
-            'Ativos',
-            'Disponibilidade',
-            'Continuidade',
-            'Projetos Judiciarios - Aplicações',
-        ];
-        if (! in_array($gerencia, $allowedGerencias, true)) {
-            $gerencia = 'Sem registro';
+        if ($managementUnitId > 0) {
+            $managementUnit = (new ManagementUnitModel())->find($managementUnitId);
+            if (! is_array($managementUnit)) {
+                return ['success' => false, 'message' => 'Gerência selecionada não encontrada.'];
+            }
+            $gerencia = (string) ($managementUnit['name'] ?? 'Sem registro');
+        } else {
+            $managementUnitId = 0;
+        }
+
+        if ($technicalResponsibleId > 0) {
+            if ($managementUnitId <= 0) {
+                return ['success' => false, 'message' => 'Selecione uma gerência antes do responsável técnico.'];
+            }
+            $relationshipExists = (new ManagementUnitTechnicalResponsibleModel())
+                ->where('management_unit_id', $managementUnitId)
+                ->where('technical_responsible_id', $technicalResponsibleId)
+                ->countAllResults() > 0;
+            $technicalResponsible = (new TechnicalResponsibleModel())->find($technicalResponsibleId);
+            if (! $relationshipExists || ! is_array($technicalResponsible)) {
+                return [
+                    'success' => false,
+                    'message' => 'O responsável técnico não está vinculado à gerência selecionada.',
+                ];
+            }
+            $owner = (string) ($technicalResponsible['name'] ?? 'Sem registro');
+        } else {
+            $technicalResponsibleId = 0;
         }
 
         if ($creationDate !== '') {
             $dt = DateTime::createFromFormat('d/m/Y', $creationDate);
             if ($dt === false) {
-            return ['success' => false, 'message' => 'Data de criacao invalida (use dd/mm/aaaa).'];
+                return ['success' => false, 'message' => 'Data de criacao invalida (use dd/mm/aaaa).'];
             }
             $creationDate = $dt->format('d/m/Y');
+        }
+        if ($osLastUpdateDate !== '') {
+            $dt = DateTime::createFromFormat('!Y-m-d', $osLastUpdateDate);
+            $dateErrors = DateTime::getLastErrors();
+            if ($dt === false
+                || ($dateErrors !== false
+                    && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+                || $dt->format('Y-m-d') !== $osLastUpdateDate) {
+                return ['success' => false, 'message' => 'Data da última atualização do SO inválida.'];
+            }
+            $osLastUpdateDate = $dt->format('Y-m-d');
         }
 
         $data = [
             'vm' => $vm,
             'desc' => $desc,
             'gerencia' => $gerencia,
+            'management_unit_id' => $managementUnitId > 0 ? $managementUnitId : null,
             'owner' => $owner,
+            'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
             'conv' => $conv,
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
-            'mig' => $this->request->getPost('migrable') ? 1 : 0,
+            'mig' => $migrationTarget !== 'none' ? 1 : 0,
+            'migration_target' => $migrationTarget,
             'app' => $this->request->getPost('appliance') ? 1 : 0,
             'worker' => $worker,
             'creation_date' => $creationDate,
+            'os_last_update_date' => $osLastUpdateDate !== '' ? $osLastUpdateDate : null,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
@@ -920,7 +964,11 @@ class ReportController extends Controller
 
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
-        $rows = $infoModel->select('vm, desc, gerencia, owner, conv, leg, mig, app, worker, creation_date')
+        $rows = $infoModel->select(
+            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, '
+            . 'conv, leg, mig, migration_target, app, worker, '
+            . 'creation_date, os_last_update_date'
+        )
             ->findAll();
 
         $map = [];
@@ -929,16 +977,25 @@ class ReportController extends Controller
             if ($vm === '') {
                 continue;
             }
+            $isMigrable = (int) ($row['mig'] ?? 0) === 1;
+            $migrationTarget = (string) ($row['migration_target'] ?? '');
+            if (! in_array($migrationTarget, ['none', 'other_host', 'openshift'], true)) {
+                $migrationTarget = $isMigrable ? 'other_host' : 'none';
+            }
             $map[$vm] = [
                 'desc' => $row['desc'] ?? 'Sem registro',
                 'gerencia' => $row['gerencia'] ?? 'Sem registro',
+                'management_unit_id' => (int) ($row['management_unit_id'] ?? 0),
                 'owner' => $row['owner'] ?? 'Sem registro',
+                'technical_responsible_id' => (int) ($row['technical_responsible_id'] ?? 0),
                 'conv' => $row['conv'] ?? 'Nao informado',
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
-                'mig' => ((int) ($row['mig'] ?? 0)) ? '1' : '0',
+                'mig' => $isMigrable ? '1' : '0',
+                'migration_target' => $migrationTarget,
                 'app' => ((int) ($row['app'] ?? 0)) ? '1' : '0',
                 'worker' => $row['worker'] ?? 'none',
                 'creation_date' => trim((string) ($row['creation_date'] ?? '')),
+                'os_last_update_date' => trim((string) ($row['os_last_update_date'] ?? '')),
             ];
         }
 
@@ -1282,8 +1339,10 @@ class ReportController extends Controller
             'Conversando',
             'Legado',
             "Migr\xc3\xa1vel",
+            'Migração',
             'Appliance',
             'Worker',
+            'Última atualização do SO',
             'Status',
         ], ';');
 
@@ -1302,8 +1361,10 @@ class ReportController extends Controller
                 $info['conv'] ?? 'Nao informado',
                 $info['leg'] ?? '0',
                 $info['mig'] ?? '0',
+                $this->migrationTargetLabel((string) ($info['migration_target'] ?? 'none')),
                 $info['app'] ?? '0',
                 $info['worker'] ?? 'none',
+                $info['os_last_update_date'] ?? '',
                 !empty($row['is_removed']) ? 'Removido' : 'Ativo',
             ], ';');
         }
@@ -1426,13 +1487,64 @@ class ReportController extends Controller
         return [
             'desc' => 'Sem registro',
             'gerencia' => 'Sem registro',
+            'management_unit_id' => 0,
             'owner' => 'Sem registro',
+            'technical_responsible_id' => 0,
             'conv' => 'Nao informado',
             'leg' => '0',
             'mig' => '0',
+            'migration_target' => 'none',
             'app' => '0',
             'worker' => 'none',
             'creation_date' => '',
+            'os_last_update_date' => '',
+        ];
+    }
+
+    private function migrationTargetLabel(string $target): string
+    {
+        return match ($target) {
+            'other_host' => 'Outro Host',
+            'openshift' => 'OpenShift',
+            default => 'Não migrável',
+        };
+    }
+
+    private function hostCatalogViewData(): array
+    {
+        $managementUnits = (new ManagementUnitModel())->orderBy('name', 'ASC')->findAll();
+        $technicalResponsibles = (new TechnicalResponsibleModel())->orderBy('name', 'ASC')->findAll();
+        $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
+
+        $responsiblesById = [];
+        foreach ($technicalResponsibles as $responsible) {
+            $responsibleId = (int) ($responsible['id'] ?? 0);
+            if ($responsibleId > 0) {
+                $responsiblesById[$responsibleId] = [
+                    'id' => $responsibleId,
+                    'name' => (string) ($responsible['name'] ?? ''),
+                ];
+            }
+        }
+
+        $responsiblesByManagementUnit = [];
+        foreach ($relationships as $relationship) {
+            $managementId = (int) ($relationship['management_unit_id'] ?? 0);
+            $responsibleId = (int) ($relationship['technical_responsible_id'] ?? 0);
+            if ($managementId > 0 && isset($responsiblesById[$responsibleId])) {
+                $responsiblesByManagementUnit[$managementId][] = $responsiblesById[$responsibleId];
+            }
+        }
+        foreach ($responsiblesByManagementUnit as &$responsibles) {
+            usort($responsibles, static function (array $left, array $right): int {
+                return strcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+            });
+        }
+        unset($responsibles);
+
+        return [
+            'managementUnits' => $managementUnits,
+            'technicalResponsiblesByManagementUnit' => $responsiblesByManagementUnit,
         ];
     }
 

@@ -100,13 +100,16 @@
                                         data-vm="<?= esc($row['vm'] ?? '', 'attr') ?>"
                                         data-desc="<?= esc($info['desc'] ?? 'Sem registro', 'attr') ?>"
                                         data-gerencia="<?= esc($info['gerencia'] ?? 'Sem registro', 'attr') ?>"
+                                        data-management-unit-id="<?= (int) ($info['management_unit_id'] ?? 0) ?>"
                                         data-owner="<?= esc($info['owner'] ?? 'Sem registro', 'attr') ?>"
+                                        data-technical-responsible-id="<?= (int) ($info['technical_responsible_id'] ?? 0) ?>"
                                         data-conv="<?= esc($info['conv'] ?? 'Nao informado', 'attr') ?>"
                                         data-leg="<?= esc($info['leg'] ?? '0', 'attr') ?>"
-                                        data-mig="<?= esc($info['mig'] ?? '0', 'attr') ?>"
+                                        data-migration-target="<?= esc($info['migration_target'] ?? (($info['mig'] ?? '0') === '1' ? 'other_host' : 'none'), 'attr') ?>"
                                         data-app="<?= esc($info['app'] ?? '0', 'attr') ?>"
                                         data-worker="<?= esc($info['worker'] ?? 'none', 'attr') ?>"
                                         data-creation="<?= esc($row['creation'] ?? '', 'attr') ?>"
+                                        data-os-last-update-date="<?= esc($info['os_last_update_date'] ?? '', 'attr') ?>"
                                         data-annotation="<?= esc($row['annotation'] ?? '', 'attr') ?>"
                                     ><?= $canEditHosts ? 'Detalhes / Editar' : 'Detalhes' ?></button>
                                     <?php endif; ?>
@@ -141,18 +144,7 @@
                 <label class="form-label mt-2">Descricao</label>
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
 
-                <label class="form-label mt-2">Gerencia</label>
-                <select id="gerencia" name="gerencia" class="form-select">
-                    <option value="Sem registro">Sem registro</option>
-                    <option value="Administração de Banco de Dados">Administração de Banco de Dados</option>
-                    <option value="Ativos">Ativos</option>
-                    <option value="Disponibilidade">Disponibilidade</option>
-                    <option value="Continuidade">Continuidade</option>
-                    <option value="Projetos Judiciarios - Aplicações">Projetos Judiciarios - Aplicações</option>
-                </select>
-
-                <label class="form-label mt-2">Responsável Técnico</label>
-                <input id="owner" name="owner" class="form-control">
+                <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits]) ?>
 
                 <label class="form-label mt-2">Conversando</label>
                 <textarea id="conv" name="conv" class="form-control" rows="3"></textarea>
@@ -166,17 +158,18 @@
                     </div>
                     <div class="col">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="migrable" name="migrable" value="1">
-                            <label class="form-check-label" for="migrable">Migravel</label>
-                        </div>
-                    </div>
-                    <div class="col">
-                        <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="appliance" name="appliance" value="1">
                             <label class="form-check-label" for="appliance">Appliance</label>
                         </div>
                     </div>
                 </div>
+
+                <label class="form-label mt-3" for="migration_target">Migração</label>
+                <select id="migration_target" name="migration_target" class="form-select">
+                    <option value="none">Não migrável</option>
+                    <option value="other_host">Outro Host</option>
+                    <option value="openshift">OpenShift</option>
+                </select>
 
                 <label class="form-label mt-3" for="worker">Worker</label>
                 <select id="worker" name="worker" class="form-select">
@@ -187,6 +180,9 @@
 
                 <label class="form-label mt-3">Criacao (dd/mm/aaaa)</label>
                 <input id="creation_date" name="creation_date" class="form-control" maxlength="10" placeholder="dd/mm/aaaa">
+
+                <label class="form-label mt-3" for="os_last_update_date">Última atualização do SO</label>
+                <input id="os_last_update_date" name="os_last_update_date" type="date" class="form-control">
 
                 <label class="form-label mt-3">VCenter Notes</label>
                 <textarea id="annotation" class="form-control" rows="3" readonly></textarea>
@@ -206,6 +202,31 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 const infoModal = document.getElementById('infoModal');
+const canEditHostAssignments = <?= $canEditHosts ? 'true' : 'false' ?>;
+const technicalResponsiblesByManagementUnit = <?= json_encode(
+    $technicalResponsiblesByManagementUnit,
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+) ?>;
+const managementUnitSelect = document.getElementById('management_unit_id');
+const technicalResponsibleSelect = document.getElementById('technical_responsible_id');
+function updateTechnicalResponsibleOptions(managementUnitId, selectedResponsibleId = '0') {
+  const responsibles = technicalResponsiblesByManagementUnit[managementUnitId] || [];
+  technicalResponsibleSelect.innerHTML = '<option value="0">Sem registro</option>';
+  responsibles.forEach((responsible) => {
+    const option = document.createElement('option');
+    option.value = String(responsible.id);
+    option.textContent = responsible.name;
+    technicalResponsibleSelect.appendChild(option);
+  });
+  technicalResponsibleSelect.value = String(selectedResponsibleId);
+  if (technicalResponsibleSelect.value !== String(selectedResponsibleId)) {
+    technicalResponsibleSelect.value = '0';
+  }
+  technicalResponsibleSelect.disabled = !canEditHostAssignments || String(managementUnitId) === '0';
+}
+managementUnitSelect.addEventListener('change', () => {
+  updateTechnicalResponsibleOptions(managementUnitSelect.value);
+});
 if (infoModal && !<?= $canEditHosts ? 'true' : 'false' ?>) {
   infoModal.querySelectorAll('input:not([type="hidden"]), textarea:not(#annotation), select')
     .forEach((field) => { field.disabled = true; });
@@ -218,19 +239,19 @@ if (infoModal) {
     }
     document.getElementById('vm').value = button.getAttribute('data-vm') || '';
     document.getElementById('desc').value = button.getAttribute('data-desc') || '';
-    const gerenciaEl = document.getElementById('gerencia');
-    const gerenciaValue = button.getAttribute('data-gerencia') || 'Sem registro';
-    gerenciaEl.value = gerenciaValue;
-    if (gerenciaEl.value !== gerenciaValue) {
-      gerenciaEl.value = 'Sem registro';
-    }
-    document.getElementById('owner').value = button.getAttribute('data-owner') || '';
+    const managementUnitId = button.getAttribute('data-management-unit-id') || '0';
+    managementUnitSelect.value = managementUnitId;
+    updateTechnicalResponsibleOptions(
+      managementUnitId,
+      button.getAttribute('data-technical-responsible-id') || '0'
+    );
     document.getElementById('conv').value = button.getAttribute('data-conv') || '';
     document.getElementById('legacy').checked = (button.getAttribute('data-leg') === '1');
-    document.getElementById('migrable').checked = (button.getAttribute('data-mig') === '1');
+    document.getElementById('migration_target').value = button.getAttribute('data-migration-target') || 'none';
     document.getElementById('appliance').checked = (button.getAttribute('data-app') === '1');
     document.getElementById('worker').value = button.getAttribute('data-worker') || 'none';
     document.getElementById('creation_date').value = button.getAttribute('data-creation') || '';
+    document.getElementById('os_last_update_date').value = button.getAttribute('data-os-last-update-date') || '';
     document.getElementById('annotation').value = button.getAttribute('data-annotation') || '';
   });
 }

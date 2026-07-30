@@ -36,6 +36,13 @@ $routes->get('admin/profile', 'AdminController::profile');
 $routes->post('admin/profile', 'AdminController::updateProfile', ['filter' => 'csrf']);
 $routes->post('admin/profile/password', 'AdminController::updatePassword', ['filter' => 'csrf']);
 $routes->post('admin/logout', 'AdminController::logout', ['filter' => 'csrf']);
+$routes->group('admin/catalogs', ['filter' => 'role:admin'], static function ($routes) {
+    $routes->get('', 'CatalogController::index');
+    $routes->post('management-units', 'CatalogController::saveManagementUnit', ['filter' => 'csrf']);
+    $routes->post('management-units/(:num)', 'CatalogController::saveManagementUnit/$1', ['filter' => 'csrf']);
+    $routes->post('technical-responsibles', 'CatalogController::saveTechnicalResponsible', ['filter' => 'csrf']);
+    $routes->post('technical-responsibles/(:num)', 'CatalogController::saveTechnicalResponsible/$1', ['filter' => 'csrf']);
+});
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
     $routes->get('vm', 'ReportController::vmTodos');
     $routes->get('vm-migraveis', 'ReportController::vmMigraveis');
