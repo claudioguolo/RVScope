@@ -867,6 +867,7 @@ class ReportController extends Controller
         $technicalResponsibleId = (int) ($this->request->getPost('technical_responsible_id') ?? 0);
         $gerencia = 'Sem registro';
         $owner = 'Sem registro';
+        $contract = trim((string) ($this->request->getPost('contract') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
         $osLastUpdateDate = trim((string) ($this->request->getPost('os_last_update_date') ?? ''));
@@ -885,6 +886,10 @@ class ReportController extends Controller
 
         $desc = str_replace(';', ',', $desc);
         $conv = str_replace(';', ',', $conv);
+
+        if (mb_strlen($contract) > 500) {
+            return ['success' => false, 'message' => 'O campo Contrato deve ter no máximo 500 caracteres.'];
+        }
 
         if ($managementUnitId > 0) {
             $managementUnit = (new ManagementUnitModel())->find($managementUnitId);
@@ -942,6 +947,7 @@ class ReportController extends Controller
             'management_unit_id' => $managementUnitId > 0 ? $managementUnitId : null,
             'owner' => $owner,
             'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
+            'contract' => $contract,
             'conv' => $conv,
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
             'mig' => $migrationTarget !== 'none' ? 1 : 0,
@@ -965,7 +971,7 @@ class ReportController extends Controller
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
         $rows = $infoModel->select(
-            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, '
+            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, contract, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
         )
@@ -988,6 +994,7 @@ class ReportController extends Controller
                 'management_unit_id' => (int) ($row['management_unit_id'] ?? 0),
                 'owner' => $row['owner'] ?? 'Sem registro',
                 'technical_responsible_id' => (int) ($row['technical_responsible_id'] ?? 0),
+                'contract' => trim((string) ($row['contract'] ?? '')),
                 'conv' => $row['conv'] ?? 'Nao informado',
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
                 'mig' => $isMigrable ? '1' : '0',
@@ -1336,6 +1343,7 @@ class ReportController extends Controller
             'Creation',
             "Descri\xc3\xa7\xc3\xa3o",
             "Respons\xc3\xa1vel T\xc3\xa9cnico",
+            'Contrato',
             'Conversando',
             'Legado',
             "Migr\xc3\xa1vel",
@@ -1358,6 +1366,7 @@ class ReportController extends Controller
                 $row['creation'],
                 $info['desc'] ?? 'Sem registro',
                 $info['owner'] ?? 'Sem registro',
+                $info['contract'] ?? '',
                 $info['conv'] ?? 'Nao informado',
                 $info['leg'] ?? '0',
                 $info['mig'] ?? '0',
@@ -1490,6 +1499,7 @@ class ReportController extends Controller
             'management_unit_id' => 0,
             'owner' => 'Sem registro',
             'technical_responsible_id' => 0,
+            'contract' => '',
             'conv' => 'Nao informado',
             'leg' => '0',
             'mig' => '0',

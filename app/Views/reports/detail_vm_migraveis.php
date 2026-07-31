@@ -104,6 +104,7 @@
                                         data-management-unit-id="<?= (int) ($info['management_unit_id'] ?? 0) ?>"
                                         data-owner="<?= esc($info['owner'] ?? 'Sem registro', 'attr') ?>"
                                         data-technical-responsible-id="<?= (int) ($info['technical_responsible_id'] ?? 0) ?>"
+                                        data-contract="<?= esc($info['contract'] ?? '', 'attr') ?>"
                                         data-conv="<?= esc($info['conv'] ?? 'Nao informado', 'attr') ?>"
                                         data-leg="<?= esc($info['leg'] ?? '0', 'attr') ?>"
                                         data-migration-target="<?= esc($info['migration_target'] ?? (($info['mig'] ?? '0') === '1' ? 'other_host' : 'none'), 'attr') ?>"
@@ -145,6 +146,9 @@
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
 
                 <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits]) ?>
+
+                <label class="form-label mt-2" for="contract">Contrato</label>
+                <input id="contract" name="contract" type="text" class="form-control" maxlength="500" placeholder="Informações do contrato com terceiros (opcional)">
 
                 <label class="form-label mt-2">Conversando</label>
                 <textarea id="conv" name="conv" class="form-control" rows="3"></textarea>
@@ -245,6 +249,7 @@ if (infoModal) {
       managementUnitId,
       button.getAttribute('data-technical-responsible-id') || '0'
     );
+    document.getElementById('contract').value = button.getAttribute('data-contract') || '';
     document.getElementById('conv').value = button.getAttribute('data-conv') || '';
     document.getElementById('legacy').checked = (button.getAttribute('data-leg') === '1');
     document.getElementById('migration_target').value = button.getAttribute('data-migration-target') || 'none';

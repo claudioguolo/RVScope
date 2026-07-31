@@ -19,6 +19,7 @@ class HostInfoModel extends Model
         'management_unit_id',
         'owner',
         'technical_responsible_id',
+        'contract',
         'conv',
         'leg',
         'mig',
