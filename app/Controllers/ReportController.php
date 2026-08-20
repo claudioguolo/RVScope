@@ -747,6 +747,7 @@ class ReportController extends Controller
         $gerencia = 'Sem registro';
         $owner = 'Sem registro';
         $contract = trim((string) ($this->request->getPost('contract') ?? ''));
+        $assetRiskScore = trim((string) ($this->request->getPost('asset_risk_score') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
         $osLastUpdateDate = trim((string) ($this->request->getPost('os_last_update_date') ?? ''));
@@ -768,6 +769,9 @@ class ReportController extends Controller
 
         if (mb_strlen($contract) > 500) {
             return ['success' => false, 'message' => 'O campo Contrato deve ter no máximo 500 caracteres.'];
+        }
+        if (mb_strlen($assetRiskScore) > 160) {
+            return ['success' => false, 'message' => 'O campo Asset risk score deve ter no máximo 160 caracteres.'];
         }
 
         if ($managementUnitId > 0) {
@@ -827,6 +831,7 @@ class ReportController extends Controller
             'owner' => $owner,
             'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
             'contract' => $contract,
+            'asset_risk_score' => $assetRiskScore,
             'conv' => $conv,
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
             'mig' => $migrationTarget !== 'none' ? 1 : 0,
@@ -850,7 +855,7 @@ class ReportController extends Controller
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
         $rows = $infoModel->select(
-            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, contract, '
+            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, contract, asset_risk_score, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
         )
@@ -874,6 +879,7 @@ class ReportController extends Controller
                 'owner' => $row['owner'] ?? 'Sem registro',
                 'technical_responsible_id' => (int) ($row['technical_responsible_id'] ?? 0),
                 'contract' => trim((string) ($row['contract'] ?? '')),
+                'asset_risk_score' => trim((string) ($row['asset_risk_score'] ?? '')),
                 'conv' => $row['conv'] ?? 'Nao informado',
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
                 'mig' => $isMigrable ? '1' : '0',
@@ -1379,6 +1385,7 @@ class ReportController extends Controller
             'owner' => 'Sem registro',
             'technical_responsible_id' => 0,
             'contract' => '',
+            'asset_risk_score' => '',
             'conv' => 'Nao informado',
             'leg' => '0',
             'mig' => '0',

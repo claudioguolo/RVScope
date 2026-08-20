@@ -20,6 +20,7 @@ class HostInfoModel extends Model
         'owner',
         'technical_responsible_id',
         'contract',
+        'asset_risk_score',
         'conv',
         'leg',
         'mig',
