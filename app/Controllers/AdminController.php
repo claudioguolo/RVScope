@@ -24,10 +24,10 @@ class AdminController extends Controller
         $user = $this->gateUsername();
         $password = $this->gatePassword();
 
-        if ($password === '') {
+        if ($user === '' || $password === '') {
             return $this->response
                 ->setStatusCode(500)
-                ->setBody('Credencial administrativa nao configurada. Defina security.adminPassword ou security.bootstrapAdminPassword no .env.');
+                ->setBody('Credencial administrativa nao configurada. Defina security.adminUser e security.adminPassword no .env.');
         }
 
         $providedUser = (string) ($this->request->getServer('PHP_AUTH_USER') ?? '');
@@ -619,13 +619,14 @@ class AdminController extends Controller
             return;
         }
 
+        $username = $this->bootstrapAdminUsername();
         $password = $this->bootstrapAdminPassword();
-        if ($password === '') {
+        if ($username === '' || $password === '') {
             return;
         }
 
         $userModel->insert([
-            'username' => $this->bootstrapAdminUsername(),
+            'username' => $username,
             'display_name' => trim((string) env('security.bootstrapAdminName', 'Administrador inicial')),
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             'auth_source' => 'local',
@@ -638,30 +639,21 @@ class AdminController extends Controller
 
     private function bootstrapAdminUsername(): string
     {
-        $username = strtolower(trim((string) env('security.bootstrapAdminUser', $this->gateUsername())));
-        return $username !== '' ? $username : 'admin';
+        return strtolower(trim((string) env('security.bootstrapAdminUser', '')));
     }
 
     private function bootstrapAdminPassword(): string
     {
-        $password = (string) env('security.bootstrapAdminPassword', $this->gatePassword());
-        return $password !== '' ? $password : 'troque-esta-senha';
+        return (string) env('security.bootstrapAdminPassword', '');
     }
 
     private function gateUsername(): string
     {
-        $username = strtolower(trim((string) env('security.adminUser', 'admin')));
-        return $username !== '' ? $username : 'admin';
+        return strtolower(trim((string) env('security.adminUser', '')));
     }
 
     private function gatePassword(): string
     {
-        $password = (string) env('security.adminPassword', '');
-        if ($password !== '') {
-            return $password;
-        }
-
-        $password = (string) env('security.bootstrapAdminPassword', '');
-        return $password !== '' ? $password : 'troque-esta-senha';
+        return (string) env('security.adminPassword', '');
     }
 }

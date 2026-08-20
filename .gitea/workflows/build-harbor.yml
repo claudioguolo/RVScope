@@ -43,7 +43,61 @@ jobs:
       - name: Validar acesso ao Docker
         run: docker version
 
-      - name: Autenticar, compilar e publicar
+      - name: Validar fontes, dependências e testes
+        run: |
+          set -eu
+
+          docker run --rm \
+            --volume "$PWD:/app" \
+            --workdir /app \
+            composer:2.8.11 \
+            composer validate --strict --no-check-publish
+
+          docker run --rm \
+            --volume "$PWD:/app" \
+            --workdir /app \
+            composer:2.8.11 \
+            composer install --no-interaction --prefer-dist --ignore-platform-req=ext-intl
+
+          docker run --rm \
+            --volume "$PWD:/app" \
+            --workdir /app \
+            composer:2.8.11 \
+            composer test
+
+          docker run --rm \
+            --volume "$PWD:/app:ro" \
+            --workdir /app \
+            php:8.2.33-cli-bookworm sh -c \
+              "find app tests -type f -name '*.php' -print0 | xargs -0 -n1 php -l"
+
+          bash -n docker/php/entrypoint.sh scripts/*.sh
+          docker compose config --quiet
+
+      - name: Compilar imagem imutável
+        run: |
+          set -eu
+
+          SHORT_SHA="$(printf '%s' '${{ gitea.sha }}' | cut -c1-12)"
+          docker build \
+            --file docker/php/Dockerfile \
+            --tag "$HARBOR_IMAGE:$SHORT_SHA" \
+            .
+
+      - name: Verificar vulnerabilidades da imagem
+        run: |
+          set -eu
+
+          SHORT_SHA="$(printf '%s' '${{ gitea.sha }}' | cut -c1-12)"
+          docker run --rm \
+            --volume /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.74.0 image \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --severity HIGH,CRITICAL \
+            "$HARBOR_IMAGE:$SHORT_SHA"
+
+      - name: Autenticar e publicar
         env:
           HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
           HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
@@ -57,13 +111,8 @@ jobs:
 
           SHORT_SHA="$(printf '%s' '${{ gitea.sha }}' | cut -c1-12)"
 
-          docker build \
-            --file docker/php/Dockerfile \
-            --tag "$HARBOR_IMAGE:homolog" \
-            --tag "$HARBOR_IMAGE:$SHORT_SHA" \
-            .
-
           docker push "$HARBOR_IMAGE:$SHORT_SHA"
+          docker tag "$HARBOR_IMAGE:$SHORT_SHA" "$HARBOR_IMAGE:homolog"
           docker push "$HARBOR_IMAGE:homolog"
 
       - name: Encerrar sessão no Harbor

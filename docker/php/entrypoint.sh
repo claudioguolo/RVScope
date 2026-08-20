@@ -20,11 +20,13 @@ DB_NAME="$(get_env_value 'database.default.database')"
 DB_USER="$(get_env_value 'database.default.username')"
 DB_PASS="$(get_env_value 'database.default.password')"
 DB_HOST="$(get_env_value 'database.default.hostname')"
+DB_PORT="$(get_env_value 'database.default.port')"
 
 DB_NAME="${DB_NAME:-${POSTGRES_DB:-rvscope}}"
 DB_USER="${DB_USER:-${POSTGRES_USER:-rvscope}}"
 DB_PASS="${DB_PASS:-${POSTGRES_PASSWORD:-}}"
 DB_HOST="${DB_HOST:-${POSTGRES_HOST:-db}}"
+DB_PORT="${DB_PORT:-${POSTGRES_PORT:-5432}}"
 
 # 1. Restauracao inicial do CodeIgniter (caso a pasta esteja vazia)
 if [ ! -f "$APP_ROOT/public/index.php" ]; then
@@ -92,11 +94,11 @@ if [ -z "$DB_PASS" ]; then
 else
     export PGPASSWORD="$DB_PASS"
     export PGCONNECT_TIMEOUT=3
-    echo "Verificando o serviço de banco de dados ($DB_HOST:5432/$DB_NAME)..."
+    echo "Verificando o serviço de banco de dados ($DB_HOST:$DB_PORT/$DB_NAME)..."
 
     attempt=1
     while [ "$attempt" -le "$DB_WAIT_RETRIES" ]; do
-        if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT 1" >/dev/null 2>&1; then
+        if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT 1" >/dev/null 2>&1; then
             DB_AVAILABLE=true
             break
         fi
@@ -126,6 +128,9 @@ else
 fi
 find "$APP_ROOT" -type d -exec chmod 755 {} + || true
 find "$APP_ROOT" -type f -exec chmod 644 {} + || true
+if [ -f "$APP_ROOT/.env" ]; then
+    chmod 600 "$APP_ROOT/.env" || true
+fi
 if [ -d "$APP_ROOT/writable" ]; then
     chmod -R 775 "$APP_ROOT/writable" || true
 fi

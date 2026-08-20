@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\UserAuthorization;
+use App\Libraries\ReportRowFilter;
 use App\Models\HostInfoModel;
 use App\Models\HostRemovalReasonModel;
 use App\Models\ManagementUnitModel;
@@ -16,6 +17,8 @@ use DateTime;
 
 class ReportController extends Controller
 {
+    private ?ReportRowFilter $reportRowFilter = null;
+
     public function index()
     {
         return $this->renderVmTodos([
@@ -78,7 +81,7 @@ class ReportController extends Controller
 
         if ($this->request->getGet('export') === 'csv') {
             $exportDate = $this->selectedExportDate();
-            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+            $exportRows = $this->rowFilter()->summariesForDate($rows, $exportDate);
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_por_gerencia' . ($legacyOnly ? '_legados' : '') . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
@@ -153,9 +156,9 @@ class ReportController extends Controller
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
-            $rows = $this->filterRowsByGerencia($rows, $gerencia);
+            $rows = $this->rowFilter()->byManagementUnit($rows, $gerencia);
             if ($legacyOnly) {
-                $rows = $this->filterRowsByLegacy($rows);
+                $rows = $this->rowFilter()->legacy($rows);
             }
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
@@ -166,7 +169,7 @@ class ReportController extends Controller
 
         return view('reports/detail_by_gerencia', [
             'date' => $date,
-            'gerencia' => $this->normalizeGerencia($gerencia),
+            'gerencia' => $this->rowFilter()->normalizeManagementUnit($gerencia),
             'rows' => $rows,
             'alert' => $alert,
             'error' => $error,
@@ -189,7 +192,7 @@ class ReportController extends Controller
 
         if ($this->request->getGet('export') === 'csv') {
             $exportDate = $this->selectedExportDate();
-            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+            $exportRows = $this->rowFilter()->summariesForDate($rows, $exportDate);
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_migraveis' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
@@ -253,7 +256,7 @@ class ReportController extends Controller
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
-            $rows = $this->filterRowsByMigrable($rows);
+            $rows = $this->rowFilter()->migrable($rows);
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
 
@@ -284,7 +287,7 @@ class ReportController extends Controller
 
         if ($this->request->getGet('export') === 'csv') {
             $exportDate = $this->selectedExportDate();
-            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+            $exportRows = $this->rowFilter()->summariesForDate($rows, $exportDate);
 
             return $this->exportSummaryCsv(
                 'RVScope_appliances_todos' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
@@ -344,7 +347,7 @@ class ReportController extends Controller
 
         if ($this->request->getGet('export') === 'csv') {
             $exportDate = $this->selectedExportDate();
-            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+            $exportRows = $this->rowFilter()->summariesForDate($rows, $exportDate);
 
             return $this->exportSummaryCsv(
                 'RVScope_appliances_por_gerencia' . ($legacyOnly ? '_legados' : '') . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
@@ -416,12 +419,12 @@ class ReportController extends Controller
         if ($error === null) {
             $rows = $this->loadInventoryRows($date, '', $infoMap, $error);
             $rows = $this->appendRemovedInventoryRows($rows, $date, '', $infoMap, $error);
-            $rows = $this->filterRowsByAppliance($rows);
+            $rows = $this->rowFilter()->appliances($rows);
             if ($legacyOnly) {
-                $rows = $this->filterRowsByLegacy($rows);
+                $rows = $this->rowFilter()->legacy($rows);
             }
             if (! $allGerencias) {
-                $rows = $this->filterRowsByGerencia($rows, $gerencia);
+                $rows = $this->rowFilter()->byManagementUnit($rows, $gerencia);
             }
             $newVmMap = $this->findNewVmsForDateFromDb($date);
         }
@@ -432,7 +435,7 @@ class ReportController extends Controller
 
         return view('reports/detail_appliances', [
             'date' => $date,
-            'gerencia' => $this->normalizeGerencia($gerencia),
+            'gerencia' => $this->rowFilter()->normalizeManagementUnit($gerencia),
             'rows' => $rows,
             'alert' => $alert,
             'error' => $error,
@@ -605,7 +608,7 @@ class ReportController extends Controller
 
         if ($this->request->getGet('export') === 'csv') {
             $exportDate = $this->selectedExportDate();
-            $exportRows = $this->filterSummaryRowsByDate($rows, $exportDate);
+            $exportRows = $this->rowFilter()->summariesForDate($rows, $exportDate);
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_por_sistema_operacional' . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
@@ -706,134 +709,10 @@ class ReportController extends Controller
         return $counts;
     }
 
-    private function normalizeGerencia(string $value): string
-    {
-        $value = trim($value);
-        return $value === '' ? 'Sem registro' : $value;
-    }
-
     private function selectedExportDate(): string
     {
         $date = trim((string) ($this->request->getGet('date') ?? ''));
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : '';
-    }
-
-    private function filterSummaryRowsByDate(array $rows, string $date): array
-    {
-        if ($date === '') {
-            return $rows;
-        }
-
-        return array_values(array_filter($rows, static function (array $row) use ($date): bool {
-            return (string) ($row['reference_date'] ?? '') === $date;
-        }));
-    }
-
-    private function toLower(string $value): string
-    {
-        if (function_exists('mb_strtolower')) {
-            return mb_strtolower($value, 'UTF-8');
-        }
-
-        return strtolower($value);
-    }
-
-    private function filterRowsByGerencia(array $rows, string $gerencia): array
-    {
-        $target = $this->toLower($this->normalizeGerencia($gerencia));
-        $filtered = [];
-
-        foreach ($rows as $row) {
-            $rowGerencia = $this->normalizeGerencia((string) (($row['info']['gerencia'] ?? '')));
-            if ($this->toLower($rowGerencia) === $target) {
-                $filtered[] = $row;
-            }
-        }
-
-        return $filtered;
-    }
-
-    private function filterRowsByAppliance(array $rows): array
-    {
-        $filtered = [];
-
-        foreach ($rows as $row) {
-            $isAppliance = (int) (($row['info']['app'] ?? '0')) === 1;
-            if ($isAppliance) {
-                $filtered[] = $row;
-            }
-        }
-
-        return $filtered;
-    }
-
-    private function filterRowsByLegacy(array $rows): array
-    {
-        $filtered = [];
-
-        foreach ($rows as $row) {
-            $isLegacy = (int) (($row['info']['leg'] ?? '0')) === 1;
-            if ($isLegacy) {
-                $filtered[] = $row;
-            }
-        }
-
-        return $filtered;
-    }
-
-    private function filterRowsByMigrable(array $rows): array
-    {
-        $filtered = [];
-
-        foreach ($rows as $row) {
-            $isMigrable = (int) (($row['info']['mig'] ?? '0')) === 1;
-            if ($isMigrable) {
-                $filtered[] = $row;
-            }
-        }
-
-        return $filtered;
-    }
-
-    private function filterRowsByInventoryDate(array $rows, string $date): array
-    {
-        if ($rows === []) {
-            return [];
-        }
-
-        $db = db_connect();
-        $inventoryRows = $db->table('rvtools_vm_inventory')
-            ->select('vm')
-            ->where('reference_date', $date)
-            ->where('included_in_reports', true)
-            ->get()
-            ->getResultArray();
-
-        if ($inventoryRows === []) {
-            return [];
-        }
-
-        $allowed = [];
-        foreach ($inventoryRows as $row) {
-            $vm = trim((string) ($row['vm'] ?? ''));
-            if ($vm !== '') {
-                $allowed[$vm] = true;
-            }
-        }
-
-        if ($allowed === []) {
-            return [];
-        }
-
-        $filtered = [];
-        foreach ($rows as $row) {
-            $vm = trim((string) ($row['vm'] ?? ''));
-            if ($vm !== '' && isset($allowed[$vm])) {
-                $filtered[] = $row;
-            }
-        }
-
-        return $filtered;
     }
 
     private function findPreviousDate(string $date): ?string
@@ -1047,7 +926,7 @@ class ReportController extends Controller
             $csvPath = $this->findCsvPath($date);
             if ($csvPath !== null) {
                 $rows = $this->parseCsvRows($csvPath, $osFilter, $infoMap, $error);
-                return $this->filterRowsByInventoryDate($rows, $date);
+                return $this->rowFilter()->presentInInventory($rows, $date);
             }
 
             $error = 'Os detalhes desta data ainda não foram migrados para o banco de dados.';
@@ -1265,7 +1144,7 @@ class ReportController extends Controller
             return [];
         }
 
-        $header = fgetcsv($handle, 0, ';');
+        $header = fgetcsv($handle, 0, ';', '"', '');
         if ($header === false) {
             fclose($handle);
             $error = 'CSV sem cabecalho.';
@@ -1290,7 +1169,7 @@ class ReportController extends Controller
         }
 
         $rows = [];
-        while (($line = fgetcsv($handle, 0, ';')) !== false) {
+        while (($line = fgetcsv($handle, 0, ';', '"', '')) !== false) {
             if (($line[$idxPS] ?? '') !== 'poweredOn') {
                 continue;
             }
@@ -1352,7 +1231,7 @@ class ReportController extends Controller
             'Worker',
             'Última atualização do SO',
             'Status',
-        ], ';');
+        ], ';', '"', '');
 
         $counter = 1;
         foreach ($rows as $row) {
@@ -1375,7 +1254,7 @@ class ReportController extends Controller
                 $info['worker'] ?? 'none',
                 $info['os_last_update_date'] ?? '',
                 !empty($row['is_removed']) ? 'Removido' : 'Ativo',
-            ], ';');
+            ], ';', '"', '');
         }
 
         rewind($handle);
@@ -1392,10 +1271,10 @@ class ReportController extends Controller
     private function exportSummaryCsv(string $filename, array $header, array $rows)
     {
         $handle = fopen('php://temp', 'r+');
-        fputcsv($handle, $header, ';');
+        fputcsv($handle, $header, ';', '"', '');
 
         foreach ($rows as $row) {
-            fputcsv($handle, $row, ';');
+            fputcsv($handle, $row, ';', '"', '');
         }
 
         rewind($handle);
@@ -1556,6 +1435,11 @@ class ReportController extends Controller
             'managementUnits' => $managementUnits,
             'technicalResponsiblesByManagementUnit' => $responsiblesByManagementUnit,
         ];
+    }
+
+    private function rowFilter(): ReportRowFilter
+    {
+        return $this->reportRowFilter ??= new ReportRowFilter();
     }
 
 }

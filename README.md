@@ -16,7 +16,8 @@ Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise
 - `certs/` — certificados SSL (produção/dev)
 
 ## Configuração
-Crie o arquivo `.env` na raiz do projeto (exemplo):
+Copie `.env.example` para `.env` e substitua todos os valores marcados. Não há
+credenciais administrativas padrão ou de fallback.
 
 ```ini
 CI_ENVIRONMENT=production
@@ -36,13 +37,13 @@ POSTGRES_PASSWORD=SUA_SENHA
 POSTGRES_HOST=192.168.0.51
 POSTGRES_PORT=5432
 
-# Protecao de operacoes sensiveis (save_info e /import)
+# Protecao do acesso administrativo inicial (sem valores padrao)
 security.adminUser=admin
-security.adminPassword=troque-esta-senha
+security.adminPassword=SUA_SENHA_EXCLUSIVA_DO_GATE
 
 # Admin inicial do espaco administrativo (se omitido, reaproveita as credenciais acima)
 security.bootstrapAdminUser=admin
-security.bootstrapAdminPassword=troque-esta-senha
+security.bootstrapAdminPassword=SUA_SENHA_EXCLUSIVA_DO_ADMIN
 security.bootstrapAdminName=Administrador inicial
 
 # Chave usada para criptografar credenciais administrativas armazenadas no banco
@@ -60,14 +61,15 @@ exibe a Debug Toolbar e o RVScope apresenta a identificação correspondente.
 Nunca habilite `development` em homologação ou produção, pois detalhes internos
 podem ser exibidos no navegador.
 
-O atalho de engrenagem na página inicial usa essas mesmas credenciais para liberar o acesso à tela administrativa de login.
+O atalho de engrenagem na página inicial usa essas mesmas credenciais para liberar o acesso à tela administrativa de login. A aplicação não possui credenciais de fallback: se as variáveis forem omitidas, o acesso administrativo permanece bloqueado.
 
 No primeiro acesso ao login administrativo, se ainda não houver usuários na tabela, a aplicação cria automaticamente o admin inicial com essas credenciais.
 
 Na tela **Administração > Usuários**, a opção **Acesso autenticado aos
-relatórios** permite exigir uma sessão administrativa para acessar a página
-inicial e todas as rotas `/reports`. A opção começa desabilitada para preservar
-o acesso público atual. Quando habilitada, visitantes são encaminhados ao login
+relatórios** permite exigir uma sessão para acessar a página inicial e todas as
+rotas `/reports`. Em produção, a opção começa habilitada quando ainda não há
+configuração persistida; o acesso público precisa ser escolhido explicitamente
+por um administrador. Quando habilitada, visitantes são encaminhados ao login
 e retornam ao relatório solicitado depois da autenticação.
 
 Na mesma tela, a integração com o **Active Directory via LDAPS** pode ser
@@ -208,13 +210,17 @@ Coloque os arquivos em `imports/` com o padrão:
 RVTools_ExportvInfo2csv_YYYY-MM-DD_HH.MM.SS.csv
 ```
 
-Dispare a importação:
+Dispare a importação automatizada com o token exclusivo configurado em
+`security.importToken`:
 ```bash
-curl -k -u "admin:troque-esta-senha" -X POST https://localhost:8443/index.php/import
+curl -k -X POST \
+  -H "Authorization: Bearer SEU_TOKEN_DE_IMPORTACAO" \
+  https://localhost:8443/api/import
 ```
 
-Para salvar alteracoes nas telas de detalhe, o navegador solicitara autenticacao HTTP Basic
-com `security.adminUser` e `security.adminPassword`.
+Na interface, usuários autenticados como `Editor` ou `Administrador` podem
+usar a tela `/import`. Alterações nas telas de detalhe usam a mesma sessão e o
+mesmo controle de papéis.
 
 ### Inventário persistido e backfill histórico
 
@@ -227,6 +233,13 @@ persiste no PostgreSQL os campos usados pelos relatórios e a linha completa do
 CSV em `raw_data` (`JSONB`). A página principal continua consultando somente
 os resumos; listagens, detalhes e exportações carregam o inventário quando suas
 rotas são acessadas.
+
+Quando uma VM está `poweredOn`, mas o RVTools não informa temporariamente o
+campo **OS according to the VMware Tools**, a importação usa o último SO real
+conhecido dessa mesma VM em uma data anterior. O campo bruto permanece vazio
+no snapshot para auditoria. Snapshots antigos com esse falso negativo são
+detectados como incompletos e reprocessados quando a importação é executada
+novamente.
 
 Os arquivos históricos permanecem fora do Git em `arquivos_csv/`. O Compose
 monta esse diretório em modo somente leitura em `/app/arquivos_csv`.

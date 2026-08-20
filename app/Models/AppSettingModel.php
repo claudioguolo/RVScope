@@ -35,7 +35,10 @@ class AppSettingModel extends Model
 
     public function authenticatedReportsEnabled(): bool
     {
-        return $this->boolValue(self::AUTHENTICATED_REPORTS_KEY);
+        return $this->boolValue(
+            self::AUTHENTICATED_REPORTS_KEY,
+            ENVIRONMENT === 'production',
+        );
     }
 
     public function setAuthenticatedReportsEnabled(bool $enabled): void
@@ -117,9 +120,9 @@ class AppSettingModel extends Model
             : $default;
     }
 
-    private function boolValue(string $key): bool
+    private function boolValue(string $key, bool $default = false): bool
     {
-        return filter_var($this->value($key, '0'), FILTER_VALIDATE_BOOL);
+        return filter_var($this->value($key, $default ? '1' : '0'), FILTER_VALIDATE_BOOL);
     }
 
     private function setValue(string $key, string $value): void

@@ -1,6 +1,9 @@
-FROM php:8.2-apache
+FROM php:8.2.33-apache-bookworm
+
+ARG CODEIGNITER_VERSION=4.7.4
 
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         git \
         unzip \
@@ -18,8 +21,11 @@ RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
         /etc/apache2/sites-available/000-default.conf \
         /etc/apache2/apache2.conf
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN composer create-project codeigniter4/appstarter /opt/ci4-app --no-dev --no-interaction \
+COPY --from=composer:2.8.11 /usr/bin/composer /usr/bin/composer
+COPY composer.json composer.lock /tmp/rvscope-dependencies/
+RUN composer create-project "codeigniter4/appstarter:${CODEIGNITER_VERSION}" /opt/ci4-app --no-install --no-interaction \
+    && cp /tmp/rvscope-dependencies/composer.json /tmp/rvscope-dependencies/composer.lock /opt/ci4-app/ \
+    && composer install --working-dir=/opt/ci4-app --no-dev --no-interaction --prefer-dist \
     && rm -rf /opt/ci4-app/.git
 
 COPY docker/php/apache.conf /etc/apache2/conf-available/ci4.conf

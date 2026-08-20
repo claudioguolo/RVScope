@@ -17,6 +17,8 @@ class RvtoolsImporter
     private RvtoolsImportLogModel $importLogModel;
     private string $importPath;
     private int $osMaxLength;
+    private RvtoolsCsvFileInspector $fileInspector;
+    private RvtoolsOsFallbackResolver $osFallbackResolver;
 
     public function __construct(?BaseConnection $db = null, ?RvtoolsConfig $config = null)
     {
@@ -24,6 +26,8 @@ class RvtoolsImporter
         $this->summaryModel = new RvtoolsOsSummaryModel($this->db);
         $this->inventoryModel = new RvtoolsVmInventoryModel($this->db);
         $this->importLogModel = new RvtoolsImportLogModel($this->db);
+        $this->fileInspector = new RvtoolsCsvFileInspector();
+        $this->osFallbackResolver = new RvtoolsOsFallbackResolver();
 
         $config = $config ?? config('Rvtools');
         $this->importPath = $this->resolveImportPath($config->importPath);
@@ -98,7 +102,7 @@ class RvtoolsImporter
             $latestFiles = [];
             foreach ($files as $filePath) {
                 try {
-                    $referenceDate = $this->extractReferenceDate(basename($filePath));
+                    $referenceDate = $this->fileInspector->referenceDate(basename($filePath));
                     $latestFiles[$referenceDate] = $filePath;
                 } catch (RuntimeException $exception) {
                     $errors[] = basename($filePath) . ': ' . $exception->getMessage();
@@ -111,7 +115,7 @@ class RvtoolsImporter
         $compatibleFiles = [];
         $incompatible = [];
         foreach ($files as $filePath) {
-            $headerError = $this->validateFileHeader($filePath);
+            $headerError = $this->fileInspector->headerError($filePath);
             if ($headerError !== null) {
                 $incompatible[] = basename($filePath) . ': ' . $headerError;
                 continue;
@@ -125,29 +129,6 @@ class RvtoolsImporter
             'incompatible' => $incompatible,
             'errors' => $errors,
         ];
-    }
-
-    private function validateFileHeader(string $filePath): ?string
-    {
-        $handle = fopen($filePath, 'rb');
-        if ($handle === false) {
-            return 'Unable to open CSV.';
-        }
-
-        $header = fgetcsv($handle, 0, ';');
-        fclose($handle);
-        if ($header === false) {
-            return 'CSV header not found.';
-        }
-
-        $header = array_map([$this, 'normalizeHeaderValue'], $header);
-        foreach (['VM', 'Powerstate', 'DNS Name', 'OS according to the VMware Tools'] as $requiredColumn) {
-            if (! in_array($requiredColumn, $header, true)) {
-                return 'Required column not found: ' . $requiredColumn;
-            }
-        }
-
-        return null;
     }
 
     private function processFiles(
@@ -176,7 +157,7 @@ class RvtoolsImporter
             $filename = basename($filePath);
 
             try {
-                $referenceDate = $this->extractReferenceDate($filename);
+                $referenceDate = $this->fileInspector->referenceDate($filename);
                 $alreadyImported = isset($importedMap[$filename]);
                 $hasInventory = $alreadyImported ? $this->hasInventoryForDate($referenceDate) : false;
                 $sourceSha256 = hash_file('sha256', $filePath);
@@ -224,11 +205,16 @@ class RvtoolsImporter
                     throw new RuntimeException('CSV changed while it was being read.');
                 }
 
-                $summary = $scan['summary'];
                 $inventory = $scan['inventory'];
                 if ($inventory === []) {
                     throw new RuntimeException('CSV does not contain inventory rows.');
                 }
+
+                $inventory = $this->osFallbackResolver->apply(
+                    $inventory,
+                    $this->loadLatestKnownOsMap($referenceDate, array_keys($inventory)),
+                );
+                $summary = $this->osFallbackResolver->summarize($inventory);
 
                 $previousDate = $this->findPreviousDate($referenceDate);
                 $previousInventory = $previousDate ? $this->loadInventoryMap($previousDate) : [];
@@ -357,6 +343,34 @@ class RvtoolsImporter
         return $map;
     }
 
+    private function loadLatestKnownOsMap(string $referenceDate, array $vms): array
+    {
+        if ($vms === []) {
+            return [];
+        }
+
+        $rows = $this->inventoryModel
+            ->select('DISTINCT ON (vm) vm, os_name', false)
+            ->where('reference_date <', $referenceDate)
+            ->where('included_in_reports', true)
+            ->where('os_name_raw !=', '')
+            ->whereIn('vm', $vms)
+            ->orderBy('vm', 'ASC')
+            ->orderBy('reference_date', 'DESC')
+            ->findAll();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $vm = trim((string) ($row['vm'] ?? ''));
+            $osName = trim((string) ($row['os_name'] ?? ''));
+            if ($vm !== '' && $osName !== '') {
+                $map[$vm] = $osName;
+            }
+        }
+
+        return $map;
+    }
+
     private function hasInventoryForDate(string $referenceDate): bool
     {
         return $this->inventoryModel
@@ -370,11 +384,44 @@ class RvtoolsImporter
         string $sourceSha256,
     ): bool
     {
-        return $this->inventoryModel
+        $matchingRows = $this->inventoryModel
             ->where('reference_date', $referenceDate)
             ->where('source_filename', $filename)
             ->where('source_sha256', $sourceSha256)
-            ->countAllResults() > 0;
+            ->countAllResults();
+
+        if ($matchingRows === 0) {
+            return false;
+        }
+
+        return ! $this->hasPendingOsFallback($referenceDate, $filename, $sourceSha256);
+    }
+
+    private function hasPendingOsFallback(
+        string $referenceDate,
+        string $filename,
+        string $sourceSha256,
+    ): bool {
+        $builder = $this->db->table('rvtools_vm_inventory current_inventory');
+        $builder->select('current_inventory.vm');
+        $builder->join(
+            'rvtools_vm_inventory previous_inventory',
+            "previous_inventory.vm = current_inventory.vm
+             AND previous_inventory.reference_date < current_inventory.reference_date
+             AND previous_inventory.included_in_reports = TRUE
+             AND previous_inventory.os_name_raw <> ''",
+            'inner',
+            false,
+        );
+        $builder->where('current_inventory.reference_date', $referenceDate);
+        $builder->where('current_inventory.source_filename', $filename);
+        $builder->where('current_inventory.source_sha256', $sourceSha256);
+        $builder->where('current_inventory.power_state', 'poweredOn');
+        $builder->where('current_inventory.os_name_raw', '');
+        $builder->where('current_inventory.included_in_reports', false);
+        $builder->limit(1);
+
+        return $builder->get()->getFirstRow() !== null;
     }
 
     private function scanFile(string $filePath, string $sourceSha256): array
@@ -384,7 +431,7 @@ class RvtoolsImporter
             throw new RuntimeException('Unable to open CSV.');
         }
 
-        $header = fgetcsv($handle, 0, ';');
+        $header = fgetcsv($handle, 0, ';', '"', '');
         if ($header === false) {
             fclose($handle);
             throw new RuntimeException('CSV header not found.');
@@ -407,12 +454,11 @@ class RvtoolsImporter
             throw new RuntimeException('Required columns not found.');
         }
 
-        $counts = [];
         $inventory = [];
         $filename = basename($filePath);
         $importedAt = date('Y-m-d H:i:s');
 
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
+        while (($row = fgetcsv($handle, 0, ';', '"', '')) !== false) {
             $vm = $this->sanitizeUtf8(trim((string) ($row[$vmIndex] ?? '')));
             if ($vm === '') {
                 continue;
@@ -460,16 +506,12 @@ class RvtoolsImporter
                     'imported_at' => $importedAt,
                 ];
 
-                if ($included) {
-                    $counts[$normalized] = ($counts[$normalized] ?? 0) + 1;
-                }
             }
         }
 
         fclose($handle);
 
         return [
-            'summary' => $counts,
             'inventory' => $inventory,
         ];
     }
@@ -494,70 +536,6 @@ class RvtoolsImporter
         $converted = @iconv('Windows-1252', 'UTF-8//IGNORE', $value);
 
         return $converted !== false ? $converted : '';
-    }
-
-    private function extractReferenceDate(string $filename): string
-    {
-        if (strlen($filename) < 23) {
-            throw new RuntimeException('Filename too short to extract date.');
-        }
-
-        $datePart = substr($filename, -23, 10);
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $datePart)) {
-            throw new RuntimeException('Filename does not contain a valid date.');
-        }
-
-        return $datePart;
-    }
-
-    private function summarizeFile(string $filePath): array
-    {
-        $handle = fopen($filePath, 'rb');
-        if ($handle === false) {
-            throw new RuntimeException('Unable to open CSV.');
-        }
-
-        $header = fgetcsv($handle, 0, ';');
-        if ($header === false) {
-            fclose($handle);
-            throw new RuntimeException('CSV header not found.');
-        }
-
-        $header = array_map([$this, 'normalizeHeaderValue'], $header);
-        $powerIndex = array_search('Powerstate', $header, true);
-        $osIndex = array_search('OS according to the VMware Tools', $header, true);
-
-        if ($powerIndex === false || $osIndex === false) {
-            fclose($handle);
-            throw new RuntimeException('Required columns not found.');
-        }
-
-        $counts = [];
-        while (($row = fgetcsv($handle, 0, ';')) !== false) {
-            $power = trim((string) ($row[$powerIndex] ?? ''));
-            if ($power !== 'poweredOn') {
-                continue;
-            }
-
-            $os = trim((string) ($row[$osIndex] ?? ''));
-            if ($os === '' || strcasecmp($os, 'nan') === 0) {
-                continue;
-            }
-
-            if ($this->startsWithAny($os, ['Microsoft', 'VMware', 'Forti'])) {
-                continue;
-            }
-
-            $normalized = $this->normalizeOs($os);
-            if ($normalized === '') {
-                continue;
-            }
-
-            $counts[$normalized] = ($counts[$normalized] ?? 0) + 1;
-        }
-
-        fclose($handle);
-        return $counts;
     }
 
     private function normalizeHeaderValue(string $value): string

@@ -43,13 +43,23 @@ final class UserAuthorization
     public static function canEditHosts(): bool
     {
         return self::isAuthenticated()
-            && in_array(self::currentRole(), [self::ROLE_EDITOR, self::ROLE_ADMIN], true);
+            && self::roleCanEditHosts(self::currentRole());
     }
 
     public static function canAdminister(): bool
     {
         return self::isAuthenticated()
-            && self::currentRole() === self::ROLE_ADMIN;
+            && self::roleCanAdminister(self::currentRole());
+    }
+
+    public static function roleCanEditHosts(?string $role): bool
+    {
+        return in_array(self::normalizeRole($role), [self::ROLE_EDITOR, self::ROLE_ADMIN], true);
+    }
+
+    public static function roleCanAdminister(?string $role): bool
+    {
+        return self::normalizeRole($role) === self::ROLE_ADMIN;
     }
 
     private static function currentUser(): ?array

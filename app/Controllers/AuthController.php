@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\LdapAuthenticator;
+use App\Libraries\LocalUserAuthenticator;
 use App\Libraries\UserAuthorization;
 use App\Models\AdminUserModel;
 use CodeIgniter\Controller;
@@ -36,10 +37,7 @@ class AuthController extends Controller
             ->where('username', $username)
             ->first();
 
-        if (is_array($localUser)
-            && (string) ($localUser['auth_source'] ?? 'local') === 'local'
-            && (int) ($localUser['is_active'] ?? 0) === 1
-            && password_verify($password, (string) ($localUser['password_hash'] ?? ''))) {
+        if ((new LocalUserAuthenticator())->verify($localUser, $password)) {
             $this->startSession(
                 (string) ($localUser['username'] ?? $username),
                 (string) ($localUser['display_name'] ?? $username),
