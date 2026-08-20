@@ -67,14 +67,14 @@
                                         <thead>
                                         <tr>
                                             <th>Gerência</th>
-                                            <th class="text-end">Quantidade de VMs</th>
+                                            <th class="text-end">Quantidade de hosts</th>
                                         </tr>
                                         </thead>
                                         <tbody>
                                         <?php foreach ($day['items'] as $row): ?>
                                             <tr>
                                                 <td>
-                                                    <a href="<?= $backUrl === site_url('reports/vm-por-gerencia?legacy=1')
+                                                    <a target="_blank" rel="noopener noreferrer" href="<?= $backUrl === site_url('reports/vm-por-gerencia?legacy=1')
                                                         ? site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia']) . '&legacy=1')
                                                         : site_url('reports/vm-por-gerencia/detail?date=' . urlencode($day['reference_date']) . '&gerencia=' . urlencode($row['gerencia'])) ?>">
                                                         <?= esc($row['gerencia']) ?>

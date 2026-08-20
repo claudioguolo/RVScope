@@ -85,7 +85,7 @@ class ReportController extends Controller
 
             return $this->exportSummaryCsv(
                 'RVScope_vm_por_gerencia' . ($legacyOnly ? '_legados' : '') . ($exportDate !== '' ? '_' . $exportDate : '') . '.csv',
-                ['Data', 'Gerencia', 'Quantidade de VMs', 'Legados'],
+                ['Data', 'Gerencia', 'Quantidade de hosts', 'Legados'],
                 array_map(static function (array $row) use ($legacyOnly): array {
                     return [
                         $row['reference_date'] ?? '',
@@ -1229,6 +1229,7 @@ class ReportController extends Controller
             "Descri\xc3\xa7\xc3\xa3o",
             "Respons\xc3\xa1vel T\xc3\xa9cnico",
             'Contrato',
+            'Asset risk score (ASTI)',
             'Conversando',
             'Legado',
             "Migr\xc3\xa1vel",
@@ -1252,6 +1253,7 @@ class ReportController extends Controller
                 $info['desc'] ?? 'Sem registro',
                 $info['owner'] ?? 'Sem registro',
                 $info['contract'] ?? '',
+                $info['asset_risk_score'] ?? '',
                 $info['conv'] ?? 'Nao informado',
                 $info['leg'] ?? '0',
                 $info['mig'] ?? '0',

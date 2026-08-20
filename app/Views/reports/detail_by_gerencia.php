@@ -68,6 +68,9 @@
                             <th>IP</th>
                             <th>OS</th>
                             <th>Creation</th>
+                            <th>Última atualização</th>
+                            <th>Informações de contrato</th>
+                            <th>Asset risk score (ASTI)</th>
                             <th>Info</th>
                         </tr>
                         </thead>
@@ -93,6 +96,18 @@
                                 <td><?= esc($row['ip'] ?? '') ?></td>
                                 <td><?= esc($row['os'] ?? '') ?></td>
                                 <td><?= esc($row['creation'] ?? '') ?></td>
+                                <td>
+                                    <?php
+                                    $lastUpdate = (string) ($info['os_last_update_date'] ?? '');
+                                    $lastUpdateDate = DateTime::createFromFormat('Y-m-d', $lastUpdate);
+                                    if ($lastUpdateDate !== false) {
+                                        $lastUpdate = $lastUpdateDate->format('d/m/Y');
+                                    }
+                                    ?>
+                                    <?= esc($lastUpdate) ?>
+                                </td>
+                                <td><?= esc((string) ($info['contract'] ?? '')) ?></td>
+                                <td><?= esc((string) ($info['asset_risk_score'] ?? '')) ?></td>
                                 <td>
                                     <?php if ($isRemoved): ?>
                                         <button

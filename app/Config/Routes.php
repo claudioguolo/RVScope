@@ -51,7 +51,6 @@ $routes->group('reports', ['filter' => 'authenticatedReports'], static function 
     $routes->get('vm-por-gerencia', 'ReportController::vmPorGerencia');
     $routes->get('vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail');
     $routes->post('vm-por-gerencia/detail', 'ReportController::vmPorGerenciaDetail', ['filter' => 'csrf']);
-    $routes->get('inventario-por-gerencia', 'HostInventoryController::index');
     $routes->get('appliances/todos', 'ReportController::appliancesTodos');
     $routes->get('appliances', 'ReportController::appliances');
     $routes->get('appliances/detail', 'ReportController::appliancesDetail');
