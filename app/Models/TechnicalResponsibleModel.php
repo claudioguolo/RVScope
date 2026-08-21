@@ -15,6 +15,7 @@ class TechnicalResponsibleModel extends Model
         'name',
         'phone',
         'email',
+        'is_active',
         'created_at',
         'updated_at',
     ];

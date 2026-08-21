@@ -11,7 +11,10 @@ class CatalogController extends Controller
 {
     public function index()
     {
-        $managementUnits = (new ManagementUnitModel())->orderBy('name', 'ASC')->findAll();
+        $managementUnits = (new ManagementUnitModel())
+            ->where('is_deleted', false)
+            ->orderBy('name', 'ASC')
+            ->findAll();
         $technicalResponsibles = (new TechnicalResponsibleModel())->orderBy('name', 'ASC')->findAll();
         $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
 
@@ -38,7 +41,9 @@ class CatalogController extends Controller
         $name = trim((string) ($this->request->getPost('name') ?? ''));
         $department = trim((string) ($this->request->getPost('department') ?? ''));
         $managerName = trim((string) ($this->request->getPost('manager_name') ?? ''));
+        $managerPhone = trim((string) ($this->request->getPost('manager_phone') ?? ''));
         $email = strtolower(trim((string) ($this->request->getPost('management_email') ?? '')));
+        $isActive = $this->request->getPost('is_active') !== null;
 
         if ($name === '' || $department === '' || $managerName === '' || $email === '') {
             return $this->catalogError('Preencha gerência, departamento, gerente e e-mail da gerência.');
@@ -49,13 +54,18 @@ class CatalogController extends Controller
         if (mb_strlen($name) > 160
             || mb_strlen($department) > 160
             || mb_strlen($managerName) > 160
+            || mb_strlen($managerPhone) > 40
             || mb_strlen($email) > 254) {
             return $this->catalogError('Um dos campos da gerência excede o tamanho permitido.');
         }
 
         $model = new ManagementUnitModel();
-        if ($id !== null && ! is_array($model->find($id))) {
-            return $this->catalogError('Gerência não encontrada.');
+        if ($id !== null) {
+            $existingManagementUnit = $model->find($id);
+            if (! is_array($existingManagementUnit)
+                || $this->isTruthy($existingManagementUnit['is_deleted'] ?? false)) {
+                return $this->catalogError('Gerência não encontrada.');
+            }
         }
 
         $duplicate = $model->where('name', $name)->first();
@@ -67,7 +77,9 @@ class CatalogController extends Controller
             'name' => $name,
             'department' => $department,
             'manager_name' => $managerName,
+            'manager_phone' => $managerPhone,
             'management_email' => $email,
+            'is_active' => $isActive,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
         if ($id === null) {
@@ -94,6 +106,32 @@ class CatalogController extends Controller
         return redirect()->to(site_url('admin/catalogs'));
     }
 
+    public function deleteManagementUnit(int $id)
+    {
+        $model = new ManagementUnitModel();
+        $managementUnit = $model->find($id);
+        if (! is_array($managementUnit)
+            || $this->isTruthy($managementUnit['is_deleted'] ?? false)) {
+            return $this->catalogError('Gerência não encontrada.');
+        }
+
+        try {
+            $model->update($id, [
+                'is_deleted' => true,
+                'is_active' => false,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+        } catch (\Throwable $exception) {
+            log_message('error', 'Falha ao excluir gerência: {message}', [
+                'message' => $exception->getMessage(),
+            ]);
+            return $this->catalogError('Não foi possível excluir a gerência.');
+        }
+
+        session()->setFlashdata('catalog_message', 'Gerência marcada como excluída com sucesso.');
+        return redirect()->to(site_url('admin/catalogs'));
+    }
+
     public function saveTechnicalResponsible(?int $id = null)
     {
         $name = trim((string) ($this->request->getPost('name') ?? ''));
@@ -104,8 +142,10 @@ class CatalogController extends Controller
             static fn (int $value): bool => $value > 0
         )));
 
-        if ($name === '' || $phone === '' || $email === '') {
-            return $this->catalogError('Preencha nome, telefone e e-mail do responsável técnico.');
+        $isActive = $this->request->getPost('is_active') !== null;
+
+        if ($name === '' || $email === '') {
+            return $this->catalogError('Preencha nome e e-mail do responsável técnico.');
         }
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->catalogError('Informe um e-mail válido para o responsável técnico.');
@@ -119,7 +159,9 @@ class CatalogController extends Controller
 
         $managementModel = new ManagementUnitModel();
         foreach ($managementIds as $managementId) {
-            if (! is_array($managementModel->find($managementId))) {
+            $managementUnit = $managementModel->find($managementId);
+            if (! is_array($managementUnit)
+                || $this->isTruthy($managementUnit['is_deleted'] ?? false)) {
                 return $this->catalogError('Uma das gerências selecionadas não existe.');
             }
         }
@@ -156,6 +198,7 @@ class CatalogController extends Controller
                 'name' => $name,
                 'phone' => $phone,
                 'email' => $email,
+                'is_active' => $isActive,
                 'updated_at' => date('Y-m-d H:i:s'),
             ];
             if ($id === null) {
@@ -202,5 +245,10 @@ class CatalogController extends Controller
     {
         session()->setFlashdata('catalog_error', $message);
         return redirect()->to(site_url('admin/catalogs'));
+    }
+
+    private function isTruthy(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 't', 'true'], true);
     }
 }

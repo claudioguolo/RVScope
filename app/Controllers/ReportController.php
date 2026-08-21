@@ -1410,7 +1410,10 @@ class ReportController extends Controller
 
     private function hostCatalogViewData(): array
     {
-        $managementUnits = (new ManagementUnitModel())->orderBy('name', 'ASC')->findAll();
+        $managementUnits = (new ManagementUnitModel())
+            ->where('is_deleted', false)
+            ->orderBy('name', 'ASC')
+            ->findAll();
         $technicalResponsibles = (new TechnicalResponsibleModel())->orderBy('name', 'ASC')->findAll();
         $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
 

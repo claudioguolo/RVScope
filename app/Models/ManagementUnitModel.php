@@ -15,7 +15,10 @@ class ManagementUnitModel extends Model
         'name',
         'department',
         'manager_name',
+        'manager_phone',
         'management_email',
+        'is_active',
+        'is_deleted',
         'created_at',
         'updated_at',
     ];

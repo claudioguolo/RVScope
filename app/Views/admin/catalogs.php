@@ -60,6 +60,16 @@
                 <label for="management_email" class="form-label fw-semibold">E-mail da gerência</label>
                 <input id="management_email" name="management_email" type="email" class="form-control" maxlength="254" required>
             </div>
+            <div class="col-12 col-lg-6">
+                <label for="manager_phone" class="form-label fw-semibold">Telefone do gerente <span class="text-secondary fw-normal">(opcional)</span></label>
+                <input id="manager_phone" name="manager_phone" class="form-control" maxlength="40">
+            </div>
+            <div class="col-12 d-flex align-items-center">
+                <div class="form-check">
+                    <input id="management_is_active" name="is_active" value="1" type="checkbox" class="form-check-input" checked>
+                    <label for="management_is_active" class="form-check-label">Ativa</label>
+                </div>
+            </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-brand">Cadastrar gerência</button>
             </div>
@@ -76,7 +86,14 @@
         <?php else: ?>
             <div class="accordion" id="managementUnitsAccordion">
                 <?php foreach ($managementUnits as $managementUnit): ?>
-                    <?php $managementId = (int) ($managementUnit['id'] ?? 0); ?>
+                    <?php
+                    $managementId = (int) ($managementUnit['id'] ?? 0);
+                    $managementIsActive = in_array(
+                        $managementUnit['is_active'] ?? true,
+                        [true, 1, '1', 't', 'true'],
+                        true
+                    );
+                    ?>
                     <div class="accordion-item">
                         <h3 class="accordion-header">
                             <button
@@ -84,7 +101,12 @@
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#management-unit-<?= $managementId ?>"
-                            ><?= esc((string) ($managementUnit['name'] ?? '')) ?></button>
+                            >
+                                <?= esc((string) ($managementUnit['name'] ?? '')) ?>
+                                <?php if (! $managementIsActive): ?>
+                                    <span class="badge text-bg-secondary ms-2">Inativa</span>
+                                <?php endif; ?>
+                            </button>
                         </h3>
                         <div id="management-unit-<?= $managementId ?>" class="accordion-collapse collapse" data-bs-parent="#managementUnitsAccordion">
                             <div class="accordion-body">
@@ -106,9 +128,23 @@
                                         <label class="form-label fw-semibold">E-mail da gerência</label>
                                         <input name="management_email" type="email" class="form-control" maxlength="254" value="<?= esc((string) ($managementUnit['management_email'] ?? ''), 'attr') ?>" required>
                                     </div>
+                                    <div class="col-12 col-lg-6">
+                                        <label class="form-label fw-semibold">Telefone do gerente <span class="text-secondary fw-normal">(opcional)</span></label>
+                                        <input name="manager_phone" class="form-control" maxlength="40" value="<?= esc((string) ($managementUnit['manager_phone'] ?? ''), 'attr') ?>">
+                                    </div>
+                                    <div class="col-12 d-flex align-items-center">
+                                        <div class="form-check">
+                                            <input id="management-active-<?= $managementId ?>" name="is_active" value="1" type="checkbox" class="form-check-input" <?= $managementIsActive ? 'checked' : '' ?>>
+                                            <label for="management-active-<?= $managementId ?>" class="form-check-label">Ativa</label>
+                                        </div>
+                                    </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-outline-primary">Salvar alterações</button>
                                     </div>
+                                </form>
+                                <form method="post" action="<?= site_url('admin/catalogs/management-units/' . $managementId . '/delete') ?>" class="mt-3" onsubmit="return confirm('Marcar esta gerência como excluída? Ela deixará de aparecer no sistema e só poderá ser restaurada diretamente no banco de dados.');">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="btn btn-outline-danger">Marcar como excluída</button>
                                 </form>
                             </div>
                         </div>
@@ -133,8 +169,8 @@
                 <input id="responsible_name" name="name" class="form-control" maxlength="160" required>
             </div>
             <div class="col-12 col-lg-4">
-                <label for="responsible_phone" class="form-label fw-semibold">Telefone</label>
-                <input id="responsible_phone" name="phone" class="form-control" maxlength="40" required>
+                <label for="responsible_phone" class="form-label fw-semibold">Telefone <span class="text-secondary fw-normal">(opcional)</span></label>
+                <input id="responsible_phone" name="phone" class="form-control" maxlength="40">
             </div>
             <div class="col-12 col-lg-4">
                 <label for="responsible_email" class="form-label fw-semibold">E-mail</label>
@@ -150,6 +186,12 @@
                     <?php endforeach; ?>
                 </select>
                 <div class="form-text">Use Ctrl ou Command para selecionar mais de uma gerência.</div>
+            </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input id="responsible_is_active" name="is_active" value="1" type="checkbox" class="form-check-input" checked>
+                    <label for="responsible_is_active" class="form-check-label">Ativo</label>
+                </div>
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-brand" <?= $managementUnits === [] ? 'disabled' : '' ?>>Cadastrar responsável</button>
@@ -170,6 +212,11 @@
                     <?php
                     $responsibleId = (int) ($responsible['id'] ?? 0);
                     $linkedManagementIds = array_map('intval', $managementIdsByResponsible[$responsibleId] ?? []);
+                    $responsibleIsActive = in_array(
+                        $responsible['is_active'] ?? true,
+                        [true, 1, '1', 't', 'true'],
+                        true
+                    );
                     ?>
                     <div class="accordion-item">
                         <h3 class="accordion-header">
@@ -178,7 +225,12 @@
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#technical-responsible-<?= $responsibleId ?>"
-                            ><?= esc((string) ($responsible['name'] ?? '')) ?></button>
+                            >
+                                <?= esc((string) ($responsible['name'] ?? '')) ?>
+                                <?php if (! $responsibleIsActive): ?>
+                                    <span class="badge text-bg-secondary ms-2">Inativo</span>
+                                <?php endif; ?>
+                            </button>
                         </h3>
                         <div id="technical-responsible-<?= $responsibleId ?>" class="accordion-collapse collapse" data-bs-parent="#technicalResponsiblesAccordion">
                             <div class="accordion-body">
@@ -189,8 +241,8 @@
                                         <input name="name" class="form-control" maxlength="160" value="<?= esc((string) ($responsible['name'] ?? ''), 'attr') ?>" required>
                                     </div>
                                     <div class="col-12 col-lg-4">
-                                        <label class="form-label fw-semibold">Telefone</label>
-                                        <input name="phone" class="form-control" maxlength="40" value="<?= esc((string) ($responsible['phone'] ?? ''), 'attr') ?>" required>
+                                        <label class="form-label fw-semibold">Telefone <span class="text-secondary fw-normal">(opcional)</span></label>
+                                        <input name="phone" class="form-control" maxlength="40" value="<?= esc((string) ($responsible['phone'] ?? ''), 'attr') ?>">
                                     </div>
                                     <div class="col-12 col-lg-4">
                                         <label class="form-label fw-semibold">E-mail</label>
@@ -206,6 +258,12 @@
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input id="responsible-active-<?= $responsibleId ?>" name="is_active" value="1" type="checkbox" class="form-check-input" <?= $responsibleIsActive ? 'checked' : '' ?>>
+                                            <label for="responsible-active-<?= $responsibleId ?>" class="form-check-label">Ativo</label>
+                                        </div>
                                     </div>
                                     <div class="col-12">
                                         <button type="submit" class="btn btn-outline-primary">Salvar alterações</button>
