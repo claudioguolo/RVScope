@@ -13,9 +13,13 @@ class CatalogController extends Controller
     {
         $managementUnits = (new ManagementUnitModel())
             ->where('is_deleted', false)
+            ->orderBy('is_active', 'DESC')
             ->orderBy('name', 'ASC')
             ->findAll();
-        $technicalResponsibles = (new TechnicalResponsibleModel())->orderBy('name', 'ASC')->findAll();
+        $technicalResponsibles = (new TechnicalResponsibleModel())
+            ->orderBy('is_active', 'DESC')
+            ->orderBy('name', 'ASC')
+            ->findAll();
         $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
 
         $managementIdsByResponsible = [];
