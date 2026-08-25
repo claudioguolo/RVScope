@@ -779,6 +779,10 @@ class ReportController extends Controller
             if (! is_array($managementUnit)) {
                 return ['success' => false, 'message' => 'Gerência selecionada não encontrada.'];
             }
+            if (! $this->catalogRecordIsActive($managementUnit['is_active'] ?? false)
+                || $this->catalogRecordIsActive($managementUnit['is_deleted'] ?? false)) {
+                return ['success' => false, 'message' => 'A gerência selecionada está inativa.'];
+            }
         } else {
             $managementUnitId = 0;
         }
@@ -797,6 +801,9 @@ class ReportController extends Controller
                     'success' => false,
                     'message' => 'O responsável técnico não está vinculado à gerência selecionada.',
                 ];
+            }
+            if (! $this->catalogRecordIsActive($technicalResponsible['is_active'] ?? false)) {
+                return ['success' => false, 'message' => 'O responsável técnico selecionado está inativo.'];
             }
         } else {
             $technicalResponsibleId = 0;
@@ -852,7 +859,9 @@ class ReportController extends Controller
     {
         $rows = $infoModel->select(
             "hosts_info.vm, hosts_info.desc, hosts_info.management_unit_id, management_units.name AS gerencia, "
+            . 'management_units.is_active AS management_unit_is_active, '
             . 'hosts_info.technical_responsible_id, technical_responsibles.name AS owner, '
+            . 'technical_responsibles.is_active AS technical_responsible_is_active, '
             . 'hosts_info.contract, hosts_info.asset_risk_score, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
@@ -880,8 +889,14 @@ class ReportController extends Controller
                 'desc' => $row['desc'] ?? 'Sem registro',
                 'gerencia' => $row['gerencia'] ?? 'Sem registro',
                 'management_unit_id' => (int) ($row['management_unit_id'] ?? 0),
+                'management_unit_is_active' => $this->catalogRecordIsActive(
+                    $row['management_unit_is_active'] ?? false
+                ),
                 'owner' => $row['owner'] ?? 'Sem registro',
                 'technical_responsible_id' => (int) ($row['technical_responsible_id'] ?? 0),
+                'technical_responsible_is_active' => $this->catalogRecordIsActive(
+                    $row['technical_responsible_is_active'] ?? false
+                ),
                 'contract' => trim((string) ($row['contract'] ?? '')),
                 'asset_risk_score' => trim((string) ($row['asset_risk_score'] ?? '')),
                 'conv' => $row['conv'] ?? 'Nao informado',
@@ -1388,8 +1403,10 @@ class ReportController extends Controller
             'desc' => 'Sem registro',
             'gerencia' => 'Sem registro',
             'management_unit_id' => 0,
+            'management_unit_is_active' => true,
             'owner' => 'Sem registro',
             'technical_responsible_id' => 0,
+            'technical_responsible_is_active' => true,
             'contract' => '',
             'asset_risk_score' => '',
             'conv' => 'Nao informado',
@@ -1416,9 +1433,13 @@ class ReportController extends Controller
     {
         $managementUnits = (new ManagementUnitModel())
             ->where('is_deleted', false)
+            ->where('is_active', true)
             ->orderBy('name', 'ASC')
             ->findAll();
-        $technicalResponsibles = (new TechnicalResponsibleModel())->orderBy('name', 'ASC')->findAll();
+        $technicalResponsibles = (new TechnicalResponsibleModel())
+            ->where('is_active', true)
+            ->orderBy('name', 'ASC')
+            ->findAll();
         $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
 
         $responsiblesById = [];
@@ -1456,6 +1477,11 @@ class ReportController extends Controller
     private function rowFilter(): ReportRowFilter
     {
         return $this->reportRowFilter ??= new ReportRowFilter();
+    }
+
+    private function catalogRecordIsActive(mixed $value): bool
+    {
+        return in_array($value, [true, 1, '1', 't', 'true'], true);
     }
 
 }

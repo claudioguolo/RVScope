@@ -45,10 +45,15 @@ class CatalogController extends Controller
         $email = strtolower(trim((string) ($this->request->getPost('management_email') ?? '')));
         $isActive = $this->request->getPost('is_active') !== null;
 
-        if ($name === '' || $department === '' || $managerName === '' || $email === '') {
-            return $this->catalogError('Preencha gerência, departamento, gerente e e-mail da gerência.');
+        if ($name === '') {
+            return $this->catalogError('Preencha o nome da gerência.');
         }
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($isActive && ($department === '' || $managerName === '' || $email === '')) {
+            return $this->catalogError(
+                'Para uma gerência ativa, preencha departamento, gerente e e-mail da gerência.'
+            );
+        }
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->catalogError('Informe um e-mail válido para a gerência.');
         }
         if (mb_strlen($name) > 160

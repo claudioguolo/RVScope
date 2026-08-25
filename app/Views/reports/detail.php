@@ -101,8 +101,10 @@
                                         data-desc="<?= esc($info['desc'] ?? 'Sem registro', 'attr') ?>"
                                         data-gerencia="<?= esc($info['gerencia'] ?? 'Sem registro', 'attr') ?>"
                                         data-management-unit-id="<?= (int) ($info['management_unit_id'] ?? 0) ?>"
+                                        data-management-unit-active="<?= !empty($info['management_unit_is_active']) ? '1' : '0' ?>"
                                         data-owner="<?= esc($info['owner'] ?? 'Sem registro', 'attr') ?>"
                                         data-technical-responsible-id="<?= (int) ($info['technical_responsible_id'] ?? 0) ?>"
+                                        data-technical-responsible-active="<?= !empty($info['technical_responsible_is_active']) ? '1' : '0' ?>"
                                         data-contract="<?= esc($info['contract'] ?? '', 'attr') ?>"
                                         data-asset-risk-score="<?= esc($info['asset_risk_score'] ?? '', 'attr') ?>"
                                         data-conv="<?= esc($info['conv'] ?? 'Nao informado', 'attr') ?>"
@@ -147,6 +149,7 @@
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
 
                 <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits]) ?>
+                <?= view('reports/_inactive_assignment_warning') ?>
 
                 <label class="form-label mt-2" for="contract">Contrato</label>
                 <input id="contract" name="contract" type="text" class="form-control" maxlength="500" placeholder="Informações do contrato com terceiros (opcional)">
@@ -217,6 +220,7 @@ const technicalResponsiblesByManagementUnit = <?= json_encode(
 ) ?>;
 const managementUnitSelect = document.getElementById('management_unit_id');
 const technicalResponsibleSelect = document.getElementById('technical_responsible_id');
+<?= view('reports/_inactive_assignment_warning_script') ?>
 function updateTechnicalResponsibleOptions(managementUnitId, selectedResponsibleId = '0') {
   const responsibles = technicalResponsiblesByManagementUnit[managementUnitId] || [];
   technicalResponsibleSelect.innerHTML = '<option value="0">Sem registro</option>';
@@ -247,11 +251,13 @@ if (infoModal) {
     }
     document.getElementById('vm').value = button.getAttribute('data-vm') || '';
     document.getElementById('desc').value = button.getAttribute('data-desc') || '';
+    updateInactiveAssignmentWarning(button);
     const managementUnitId = button.getAttribute('data-management-unit-id') || '0';
     managementUnitSelect.value = managementUnitId;
+    const availableManagementUnitId = managementUnitSelect.value || '0';
     updateTechnicalResponsibleOptions(
-      managementUnitId,
-      button.getAttribute('data-technical-responsible-id') || '0'
+      availableManagementUnitId,
+      availableManagementUnitId === '0' ? '0' : (button.getAttribute('data-technical-responsible-id') || '0')
     );
     document.getElementById('contract').value = button.getAttribute('data-contract') || '';
     document.getElementById('asset_risk_score').value = button.getAttribute('data-asset-risk-score') || '';

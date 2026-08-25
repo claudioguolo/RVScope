@@ -42,7 +42,7 @@
                 Essas gerências ficarão disponíveis para associação nas informações dos hosts.
             </p>
         </div>
-        <form method="post" action="<?= site_url('admin/catalogs/management-units') ?>" class="row g-3">
+        <form method="post" action="<?= site_url('admin/catalogs/management-units') ?>" class="row g-3" data-management-form>
             <?= csrf_field() ?>
             <div class="col-12 col-lg-6">
                 <label for="management_name" class="form-label fw-semibold">Gerência</label>
@@ -50,15 +50,15 @@
             </div>
             <div class="col-12 col-lg-6">
                 <label for="department" class="form-label fw-semibold">Departamento</label>
-                <input id="department" name="department" class="form-control" maxlength="160" required>
+                <input id="department" name="department" class="form-control" maxlength="160" required data-active-required>
             </div>
             <div class="col-12 col-lg-6">
                 <label for="manager_name" class="form-label fw-semibold">Gerente</label>
-                <input id="manager_name" name="manager_name" class="form-control" maxlength="160" required>
+                <input id="manager_name" name="manager_name" class="form-control" maxlength="160" required data-active-required>
             </div>
             <div class="col-12 col-lg-6">
                 <label for="management_email" class="form-label fw-semibold">E-mail da gerência</label>
-                <input id="management_email" name="management_email" type="email" class="form-control" maxlength="254" required>
+                <input id="management_email" name="management_email" type="email" class="form-control" maxlength="254" required data-active-required>
             </div>
             <div class="col-12 col-lg-6">
                 <label for="manager_phone" class="form-label fw-semibold">Telefone do gerente <span class="text-secondary fw-normal">(opcional)</span></label>
@@ -110,7 +110,7 @@
                         </h3>
                         <div id="management-unit-<?= $managementId ?>" class="accordion-collapse collapse" data-bs-parent="#managementUnitsAccordion">
                             <div class="accordion-body">
-                                <form method="post" action="<?= site_url('admin/catalogs/management-units/' . $managementId) ?>" class="row g-3">
+                                <form method="post" action="<?= site_url('admin/catalogs/management-units/' . $managementId) ?>" class="row g-3" data-management-form>
                                     <?= csrf_field() ?>
                                     <div class="col-12 col-lg-6">
                                         <label class="form-label fw-semibold">Gerência</label>
@@ -118,15 +118,15 @@
                                     </div>
                                     <div class="col-12 col-lg-6">
                                         <label class="form-label fw-semibold">Departamento</label>
-                                        <input name="department" class="form-control" maxlength="160" value="<?= esc((string) ($managementUnit['department'] ?? ''), 'attr') ?>" required>
+                                        <input name="department" class="form-control" maxlength="160" value="<?= esc((string) ($managementUnit['department'] ?? ''), 'attr') ?>" required data-active-required>
                                     </div>
                                     <div class="col-12 col-lg-6">
                                         <label class="form-label fw-semibold">Gerente</label>
-                                        <input name="manager_name" class="form-control" maxlength="160" value="<?= esc((string) ($managementUnit['manager_name'] ?? ''), 'attr') ?>" required>
+                                        <input name="manager_name" class="form-control" maxlength="160" value="<?= esc((string) ($managementUnit['manager_name'] ?? ''), 'attr') ?>" required data-active-required>
                                     </div>
                                     <div class="col-12 col-lg-6">
                                         <label class="form-label fw-semibold">E-mail da gerência</label>
-                                        <input name="management_email" type="email" class="form-control" maxlength="254" value="<?= esc((string) ($managementUnit['management_email'] ?? ''), 'attr') ?>" required>
+                                        <input name="management_email" type="email" class="form-control" maxlength="254" value="<?= esc((string) ($managementUnit['management_email'] ?? ''), 'attr') ?>" required data-active-required>
                                     </div>
                                     <div class="col-12 col-lg-6">
                                         <label class="form-label fw-semibold">Telefone do gerente <span class="text-secondary fw-normal">(opcional)</span></label>
@@ -279,5 +279,22 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.querySelectorAll('[data-management-form]').forEach((form) => {
+  const activeCheckbox = form.querySelector('input[name="is_active"]');
+  if (!activeCheckbox) {
+    return;
+  }
+
+  const updateRequiredFields = () => {
+    form.querySelectorAll('[data-active-required]').forEach((field) => {
+      field.required = activeCheckbox.checked;
+    });
+  };
+
+  activeCheckbox.addEventListener('change', updateRequiredFields);
+  updateRequiredFields();
+});
+</script>
 </body>
 </html>
