@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\CustomReportCriteria;
+use App\Libraries\OperatingSystemDisplayName;
 use CodeIgniter\Controller;
 
 class CustomReportController extends Controller
@@ -102,10 +103,20 @@ class CustomReportController extends Controller
             $builder->where('info.app', 1);
         }
 
-        return $builder->orderBy('mu.name', 'ASC')
+        $rows = $builder->orderBy('mu.name', 'ASC')
             ->orderBy('inv.vm', 'ASC')
             ->get()
             ->getResultArray();
+
+        $displayName = new OperatingSystemDisplayName();
+        foreach ($rows as &$row) {
+            $row['os_name_display'] = $displayName->clean(
+                (string) ($row['os_name_display'] ?? $row['os_name'] ?? '')
+            );
+        }
+        unset($row);
+
+        return $rows;
     }
 
     private function exportCsv(array $rows, string $date)
