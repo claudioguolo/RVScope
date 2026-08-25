@@ -155,7 +155,7 @@
                                 <td><?= esc((string) ($row['vm'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['dns_name'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['primary_ip'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['os_name'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['os_name_display'] ?? $row['os_name'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['gerencia'] ?? 'Sem registro')) ?></td>
                                 <td><?= (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
                                 <td><?= (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>

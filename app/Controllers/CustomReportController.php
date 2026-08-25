@@ -73,6 +73,7 @@ class CustomReportController extends Controller
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
             "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.power_state,
+             COALESCE(NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.leg, 0) AS leg,
              COALESCE(info.app, 0) AS app,
@@ -124,7 +125,7 @@ class CustomReportController extends Controller
                 $row['vm'] ?? '',
                 $row['dns_name'] ?? '',
                 $row['primary_ip'] ?? '',
-                $row['os_name'] ?? '',
+                $row['os_name_display'] ?? $row['os_name'] ?? '',
                 $row['gerencia'] ?? 'Sem registro',
                 (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não',
                 (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não',
