@@ -44,6 +44,10 @@ $routes->group('admin/catalogs', ['filter' => 'role:admin'], static function ($r
     $routes->post('technical-responsibles', 'CatalogController::saveTechnicalResponsible', ['filter' => 'csrf']);
     $routes->post('technical-responsibles/(:num)', 'CatalogController::saveTechnicalResponsible/$1', ['filter' => 'csrf']);
 });
+$routes->group('admin/host-management-migration', ['filter' => 'role:admin'], static function ($routes) {
+    $routes->get('', 'BatchHostManagementController::index');
+    $routes->post('', 'BatchHostManagementController::migrate', ['filter' => 'csrf']);
+});
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
     $routes->get('personalizado', 'CustomReportController::index');
     $routes->get('vm', 'ReportController::vmTodos');

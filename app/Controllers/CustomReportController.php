@@ -34,6 +34,7 @@ class CustomReportController extends Controller
         $managementUnits = $db->table('management_units')
             ->select('id, name')
             ->where('is_deleted', false)
+            ->where('is_active', true)
             ->orderBy('name', 'ASC')
             ->get()
             ->getResultArray();

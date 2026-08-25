@@ -25,6 +25,7 @@
     <div class="d-flex flex-wrap gap-2 mb-4">
         <a class="btn btn-brand" href="<?= site_url('admin/users') ?>">Usuários e configurações</a>
         <a class="btn btn-outline-secondary" href="<?= site_url('admin/catalogs') ?>">Gerências e responsáveis</a>
+        <a class="btn btn-outline-secondary" href="<?= site_url('admin/host-management-migration') ?>">Migrar hosts</a>
     </div>
 
     <div class="app-card p-4 mb-4">
