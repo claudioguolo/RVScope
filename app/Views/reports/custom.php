@@ -143,6 +143,7 @@
                             <th>IP</th>
                             <th>Sistema operacional</th>
                             <th>Gerência</th>
+                            <th>Última atualização</th>
                             <th>Legado</th>
                             <th>Appliance</th>
                             <th>Contrato</th>
@@ -151,12 +152,20 @@
                         </thead>
                         <tbody>
                         <?php foreach ($rows as $row): ?>
+                            <?php
+                            $lastUpdate = (string) ($row['os_last_update_date'] ?? '');
+                            $lastUpdateDate = DateTime::createFromFormat('Y-m-d', $lastUpdate);
+                            if ($lastUpdateDate !== false) {
+                                $lastUpdate = $lastUpdateDate->format('d/m/Y');
+                            }
+                            ?>
                             <tr>
                                 <td><?= esc((string) ($row['vm'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['dns_name'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['primary_ip'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['os_name_display'] ?? $row['os_name'] ?? '')) ?></td>
                                 <td><?= esc((string) ($row['gerencia'] ?? 'Sem registro')) ?></td>
+                                <td><?= esc($lastUpdate) ?></td>
                                 <td><?= (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
                                 <td><?= (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
                                 <td><?= esc((string) ($row['contract'] ?? '')) ?></td>

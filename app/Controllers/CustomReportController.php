@@ -78,6 +78,7 @@ class CustomReportController extends Controller
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.leg, 0) AS leg,
              COALESCE(info.app, 0) AS app,
+             COALESCE(info.os_last_update_date::text, '') AS os_last_update_date,
              COALESCE(info.contract, '') AS contract,
              COALESCE(info.asset_risk_score, '') AS asset_risk_score"
         );
@@ -128,7 +129,7 @@ class CustomReportController extends Controller
 
         fwrite($stream, "\xEF\xBB\xBF");
         fputcsv($stream, [
-            'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Legado', 'Appliance',
+            'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Última atualização', 'Legado', 'Appliance',
             'Contrato', 'Asset risk score (ASTI)',
         ], ';', '"', '');
         foreach ($rows as $row) {
@@ -138,6 +139,7 @@ class CustomReportController extends Controller
                 $row['primary_ip'] ?? '',
                 $row['os_name_display'] ?? $row['os_name'] ?? '',
                 $row['gerencia'] ?? 'Sem registro',
+                $this->formatDate((string) ($row['os_last_update_date'] ?? '')),
                 (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não',
                 (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não',
                 $row['contract'] ?? '',
@@ -153,5 +155,12 @@ class CustomReportController extends Controller
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->setHeader('Content-Disposition', 'attachment; filename="RVScope_relatorio_personalizado_' . $date . '.csv"')
             ->setBody($content === false ? '' : $content);
+    }
+
+    private function formatDate(string $value): string
+    {
+        $date = \DateTime::createFromFormat('Y-m-d', $value);
+
+        return $date === false ? $value : $date->format('d/m/Y');
     }
 }
