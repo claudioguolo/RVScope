@@ -56,6 +56,10 @@
 
             <div class="col-12 col-md-6 col-lg-3">
                 <label for="report_os" class="form-label fw-semibold">Sistema operacional</label>
+                <div class="form-check mb-2">
+                    <input id="report_os_all" type="checkbox" class="form-check-input">
+                    <label for="report_os_all" class="form-check-label">Selecionar todos</label>
+                </div>
                 <select id="report_os" name="os[]" class="form-select" multiple size="6">
                     <?php foreach ($operatingSystems as $operatingSystem): ?>
                         <option value="<?= esc((string) $operatingSystem, 'attr') ?>" <?= in_array((string) $operatingSystem, $criteria->operatingSystems, true) ? 'selected' : '' ?>>
@@ -68,6 +72,10 @@
 
             <div class="col-12 col-md-6 col-lg-3">
                 <label for="report_management" class="form-label fw-semibold">Gerência</label>
+                <div class="form-check mb-2">
+                    <input id="report_management_all" type="checkbox" class="form-check-input">
+                    <label for="report_management_all" class="form-check-label">Selecionar todas</label>
+                </div>
                 <select id="report_management" name="management_unit_id[]" class="form-select" multiple size="6">
                     <?php foreach ($managementUnits as $managementUnit): ?>
                         <?php $managementId = (int) ($managementUnit['id'] ?? 0); ?>
@@ -164,5 +172,32 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function bindSelectAll(checkboxId, selectId) {
+  const checkbox = document.getElementById(checkboxId);
+  const select = document.getElementById(selectId);
+  if (!checkbox || !select) {
+    return;
+  }
+
+  const updateCheckbox = () => {
+    const options = Array.from(select.options);
+    checkbox.checked = options.length > 0 && options.every((option) => option.selected);
+    checkbox.indeterminate = options.some((option) => option.selected) && !checkbox.checked;
+  };
+
+  checkbox.addEventListener('change', () => {
+    Array.from(select.options).forEach((option) => {
+      option.selected = checkbox.checked;
+    });
+    checkbox.indeterminate = false;
+  });
+  select.addEventListener('change', updateCheckbox);
+  updateCheckbox();
+}
+
+bindSelectAll('report_os_all', 'report_os');
+bindSelectAll('report_management_all', 'report_management');
+</script>
 </body>
 </html>
