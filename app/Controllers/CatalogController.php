@@ -141,17 +141,46 @@ class CatalogController extends Controller
         )));
 
         $isActive = $this->request->getPost('is_active') !== null;
-
-        if ($name === '' || $email === '') {
-            return $this->catalogError('Preencha nome e e-mail do responsável técnico.');
+        $model = new TechnicalResponsibleModel();
+        $existingResponsible = null;
+        if ($id !== null) {
+            $existingResponsible = $model->find($id);
+            if (! is_array($existingResponsible)) {
+                return $this->catalogError('Responsável técnico não encontrado.');
+            }
         }
-        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+
+        if (! $isActive && is_array($existingResponsible)) {
+            if ($name === '') {
+                $name = trim((string) ($existingResponsible['name'] ?? ''));
+            }
+            if ($email === '') {
+                $email = strtolower(trim((string) ($existingResponsible['email'] ?? '')));
+            }
+            if ($managementIds === []) {
+                $managementIds = array_map(
+                    'intval',
+                    array_column(
+                        (new ManagementUnitTechnicalResponsibleModel())
+                            ->select('management_unit_id')
+                            ->where('technical_responsible_id', $id)
+                            ->findAll(),
+                        'management_unit_id'
+                    )
+                );
+            }
+        }
+
+        if (($id === null || $isActive) && ($name === '' || $email === '')) {
+            return $this->catalogError('Para um responsável ativo, preencha nome e e-mail.');
+        }
+        if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return $this->catalogError('Informe um e-mail válido para o responsável técnico.');
         }
         if (mb_strlen($name) > 160 || mb_strlen($phone) > 40 || mb_strlen($email) > 254) {
             return $this->catalogError('Um dos campos do responsável técnico excede o tamanho permitido.');
         }
-        if ($managementIds === []) {
+        if ($isActive && $managementIds === []) {
             return $this->catalogError('Vincule o responsável técnico a pelo menos uma gerência.');
         }
 
@@ -164,10 +193,6 @@ class CatalogController extends Controller
             }
         }
 
-        $model = new TechnicalResponsibleModel();
-        if ($id !== null && ! is_array($model->find($id))) {
-            return $this->catalogError('Responsável técnico não encontrado.');
-        }
         if ($id !== null) {
             $assignedHosts = db_connect()->table('hosts_info')
                 ->select('management_unit_id')

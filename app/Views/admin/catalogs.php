@@ -162,11 +162,11 @@
                 Um responsável pode ser vinculado a uma ou mais gerências.
             </p>
         </div>
-        <form method="post" action="<?= site_url('admin/catalogs/technical-responsibles') ?>" class="row g-3">
+        <form method="post" action="<?= site_url('admin/catalogs/technical-responsibles') ?>" class="row g-3" data-technical-form>
             <?= csrf_field() ?>
             <div class="col-12 col-lg-4">
                 <label for="responsible_name" class="form-label fw-semibold">Nome</label>
-                <input id="responsible_name" name="name" class="form-control" maxlength="160" required>
+                <input id="responsible_name" name="name" class="form-control" maxlength="160" required data-active-required>
             </div>
             <div class="col-12 col-lg-4">
                 <label for="responsible_phone" class="form-label fw-semibold">Telefone <span class="text-secondary fw-normal">(opcional)</span></label>
@@ -174,11 +174,11 @@
             </div>
             <div class="col-12 col-lg-4">
                 <label for="responsible_email" class="form-label fw-semibold">E-mail</label>
-                <input id="responsible_email" name="email" type="email" class="form-control" maxlength="254" required>
+                <input id="responsible_email" name="email" type="email" class="form-control" maxlength="254" required data-active-required>
             </div>
             <div class="col-12">
                 <label for="responsible_management_units" class="form-label fw-semibold">Gerências</label>
-                <select id="responsible_management_units" name="management_unit_ids[]" class="form-select" multiple size="5" required>
+                <select id="responsible_management_units" name="management_unit_ids[]" class="form-select" multiple size="5" required data-active-required>
                     <?php foreach ($managementUnits as $managementUnit): ?>
                         <option value="<?= (int) ($managementUnit['id'] ?? 0) ?>">
                             <?= esc((string) ($managementUnit['name'] ?? '')) ?>
@@ -234,11 +234,11 @@
                         </h3>
                         <div id="technical-responsible-<?= $responsibleId ?>" class="accordion-collapse collapse" data-bs-parent="#technicalResponsiblesAccordion">
                             <div class="accordion-body">
-                                <form method="post" action="<?= site_url('admin/catalogs/technical-responsibles/' . $responsibleId) ?>" class="row g-3">
+                                <form method="post" action="<?= site_url('admin/catalogs/technical-responsibles/' . $responsibleId) ?>" class="row g-3" data-technical-form>
                                     <?= csrf_field() ?>
                                     <div class="col-12 col-lg-4">
                                         <label class="form-label fw-semibold">Nome</label>
-                                        <input name="name" class="form-control" maxlength="160" value="<?= esc((string) ($responsible['name'] ?? ''), 'attr') ?>" required>
+                                        <input name="name" class="form-control" maxlength="160" value="<?= esc((string) ($responsible['name'] ?? ''), 'attr') ?>" required data-active-required>
                                     </div>
                                     <div class="col-12 col-lg-4">
                                         <label class="form-label fw-semibold">Telefone <span class="text-secondary fw-normal">(opcional)</span></label>
@@ -246,11 +246,11 @@
                                     </div>
                                     <div class="col-12 col-lg-4">
                                         <label class="form-label fw-semibold">E-mail</label>
-                                        <input name="email" type="email" class="form-control" maxlength="254" value="<?= esc((string) ($responsible['email'] ?? ''), 'attr') ?>" required>
+                                        <input name="email" type="email" class="form-control" maxlength="254" value="<?= esc((string) ($responsible['email'] ?? ''), 'attr') ?>" required data-active-required>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label fw-semibold">Gerências</label>
-                                        <select name="management_unit_ids[]" class="form-select" multiple size="5" required>
+                                        <select name="management_unit_ids[]" class="form-select" multiple size="5" required data-active-required>
                                             <?php foreach ($managementUnits as $managementUnit): ?>
                                                 <?php $managementId = (int) ($managementUnit['id'] ?? 0); ?>
                                                 <option value="<?= $managementId ?>" <?= in_array($managementId, $linkedManagementIds, true) ? 'selected' : '' ?>>
@@ -280,7 +280,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-document.querySelectorAll('[data-management-form]').forEach((form) => {
+document.querySelectorAll('[data-management-form], [data-technical-form]').forEach((form) => {
   const activeCheckbox = form.querySelector('input[name="is_active"]');
   if (!activeCheckbox) {
     return;
