@@ -90,13 +90,6 @@ class CatalogController extends Controller
 
         try {
             $model->save($data);
-            $savedId = $id ?? (int) $model->getInsertID();
-            db_connect()->table('hosts_info')
-                ->where('management_unit_id', $savedId)
-                ->update([
-                    'gerencia' => $name,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
         } catch (\Throwable $exception) {
             log_message('error', 'Falha ao salvar gerência: {message}', ['message' => $exception->getMessage()]);
             return $this->catalogError('Não foi possível salvar a gerência.');
@@ -208,13 +201,6 @@ class CatalogController extends Controller
             } else {
                 $model->update($id, $data);
             }
-
-            $db->table('hosts_info')
-                ->where('technical_responsible_id', $id)
-                ->update([
-                    'owner' => $name,
-                    'updated_at' => date('Y-m-d H:i:s'),
-                ]);
 
             $relationshipModel = new ManagementUnitTechnicalResponsibleModel();
             $relationshipModel->where('technical_responsible_id', $id)->delete();

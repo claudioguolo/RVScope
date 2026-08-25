@@ -51,15 +51,16 @@ class ReportController extends Controller
         $legacyOnly = $this->request->getGet('legacy') === '1';
         $db = db_connect();
         $sql = "SELECT inv.reference_date,
-                       COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                       COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
                        COUNT(*) AS vm_count
                 FROM rvtools_vm_inventory inv
                 LEFT JOIN hosts_info info ON info.vm = inv.vm
+                LEFT JOIN management_units mu ON mu.id = info.management_unit_id
                 WHERE inv.included_in_reports = TRUE";
         if ($legacyOnly) {
             $sql .= " AND info.leg = 1";
         }
-        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro')
                   ORDER BY inv.reference_date DESC, gerencia ASC";
         $rows = $db->query($sql)->getResultArray();
 
@@ -317,15 +318,16 @@ class ReportController extends Controller
         $legacyOnly = $this->request->getGet('legacy') === '1';
         $db = db_connect();
         $sql = "SELECT inv.reference_date,
-                       COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro') AS gerencia,
+                       COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
                        COUNT(*) AS vm_count
                 FROM rvtools_vm_inventory inv
                 INNER JOIN hosts_info info ON info.vm = inv.vm AND info.app = 1
+                LEFT JOIN management_units mu ON mu.id = info.management_unit_id
                 WHERE inv.included_in_reports = TRUE";
         if ($legacyOnly) {
             $sql .= " AND info.leg = 1";
         }
-        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(info.gerencia), ''), 'Sem registro')
+        $sql .= " GROUP BY inv.reference_date, COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro')
                   ORDER BY inv.reference_date DESC, gerencia ASC";
         $rows = $db->query($sql)->getResultArray();
 
@@ -744,8 +746,6 @@ class ReportController extends Controller
         $desc = trim((string) ($this->request->getPost('desc') ?? ''));
         $managementUnitId = (int) ($this->request->getPost('management_unit_id') ?? 0);
         $technicalResponsibleId = (int) ($this->request->getPost('technical_responsible_id') ?? 0);
-        $gerencia = 'Sem registro';
-        $owner = 'Sem registro';
         $contract = trim((string) ($this->request->getPost('contract') ?? ''));
         $assetRiskScore = trim((string) ($this->request->getPost('asset_risk_score') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
@@ -779,7 +779,6 @@ class ReportController extends Controller
             if (! is_array($managementUnit)) {
                 return ['success' => false, 'message' => 'Gerência selecionada não encontrada.'];
             }
-            $gerencia = (string) ($managementUnit['name'] ?? 'Sem registro');
         } else {
             $managementUnitId = 0;
         }
@@ -799,7 +798,6 @@ class ReportController extends Controller
                     'message' => 'O responsável técnico não está vinculado à gerência selecionada.',
                 ];
             }
-            $owner = (string) ($technicalResponsible['name'] ?? 'Sem registro');
         } else {
             $technicalResponsibleId = 0;
         }
@@ -826,9 +824,7 @@ class ReportController extends Controller
         $data = [
             'vm' => $vm,
             'desc' => $desc,
-            'gerencia' => $gerencia,
             'management_unit_id' => $managementUnitId > 0 ? $managementUnitId : null,
-            'owner' => $owner,
             'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
             'contract' => $contract,
             'asset_risk_score' => $assetRiskScore,
@@ -855,10 +851,18 @@ class ReportController extends Controller
     private function loadInfoMap(HostInfoModel $infoModel): array
     {
         $rows = $infoModel->select(
-            'vm, desc, gerencia, management_unit_id, owner, technical_responsible_id, contract, asset_risk_score, '
+            "hosts_info.vm, hosts_info.desc, hosts_info.management_unit_id, management_units.name AS gerencia, "
+            . 'hosts_info.technical_responsible_id, technical_responsibles.name AS owner, '
+            . 'hosts_info.contract, hosts_info.asset_risk_score, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
         )
+            ->join('management_units', 'management_units.id = hosts_info.management_unit_id', 'left')
+            ->join(
+                'technical_responsibles',
+                'technical_responsibles.id = hosts_info.technical_responsible_id',
+                'left'
+            )
             ->findAll();
 
         $map = [];

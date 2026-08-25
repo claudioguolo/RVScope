@@ -124,6 +124,11 @@ $breadcrumbs = $breadcrumbs ?? [
                    data-bs-toggle="dropdown"
                    aria-expanded="false">Relatórios</a>
                 <ul class="dropdown-menu app-menu-dropdown">
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'personalizado' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/personalizado') ?>">Relatório personalizado</a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Appliances</h6></li>
                     <li>
                         <a class="dropdown-item <?= $activeSubmenu === 'appliances-todos' ? 'active' : '' ?>"

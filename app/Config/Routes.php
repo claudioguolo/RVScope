@@ -45,6 +45,7 @@ $routes->group('admin/catalogs', ['filter' => 'role:admin'], static function ($r
     $routes->post('technical-responsibles/(:num)', 'CatalogController::saveTechnicalResponsible/$1', ['filter' => 'csrf']);
 });
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
+    $routes->get('personalizado', 'CustomReportController::index');
     $routes->get('vm', 'ReportController::vmTodos');
     $routes->get('vm-migraveis', 'ReportController::vmMigraveis');
     $routes->get('vm-migraveis/detail', 'ReportController::vmMigraveisDetail');

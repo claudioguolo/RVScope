@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RVScope | Relatório personalizado</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" href="<?= base_url('favicon.svg') ?>">
+    <meta name="application-name" content="RVScope">
+    <meta name="description" content="RVScope - Relatório personalizado de hosts.">
+    <?= view('reports/_theme') ?>
+</head>
+<body>
+<div class="container py-4">
+    <?= view('reports/_topbar', [
+        'subtitle' => 'Relatório de hosts com filtros combináveis.',
+        'activeMenu' => 'relatorios',
+        'activeSubmenu' => 'personalizado',
+        'breadcrumbs' => [
+            ['label' => 'Início', 'url' => site_url('/')],
+            ['label' => 'Relatórios'],
+            ['label' => 'Personalizado', 'active' => true],
+        ],
+    ]) ?>
+
+    <div class="app-card p-4 mb-4">
+        <div class="mb-4">
+            <span class="app-eyebrow">Filtros</span>
+            <h1 class="h4 mt-2 mb-2">Gerar relatório</h1>
+            <p class="text-secondary mb-0">
+                Sistema operacional e gerência são cumulativos. Se Legados e Appliances forem marcados juntos, serão exibidos hosts de qualquer uma das categorias.
+            </p>
+        </div>
+
+        <form method="get" action="<?= site_url('reports/personalizado') ?>" class="row g-3">
+            <input type="hidden" name="generate" value="1">
+            <div class="col-12 col-md-6 col-lg-3">
+                <label for="report_date" class="form-label fw-semibold">Data</label>
+                <select id="report_date" name="date" class="form-select" required>
+                    <option value="">Selecione</option>
+                    <?php foreach ($dates as $date): ?>
+                        <?php
+                        $dateValue = (string) $date;
+                        $dateLabel = $dateValue;
+                        $parsedDate = DateTime::createFromFormat('Y-m-d', $dateValue);
+                        if ($parsedDate !== false) {
+                            $dateLabel = $parsedDate->format('d/m/Y');
+                        }
+                        ?>
+                        <option value="<?= esc($dateValue, 'attr') ?>" <?= $criteria->date === $dateValue ? 'selected' : '' ?>>
+                            <?= esc($dateLabel) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3">
+                <label for="report_os" class="form-label fw-semibold">Sistema operacional</label>
+                <select id="report_os" name="os[]" class="form-select" multiple size="6">
+                    <?php foreach ($operatingSystems as $operatingSystem): ?>
+                        <option value="<?= esc((string) $operatingSystem, 'attr') ?>" <?= in_array((string) $operatingSystem, $criteria->operatingSystems, true) ? 'selected' : '' ?>>
+                            <?= esc((string) $operatingSystem) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Sem seleção considera todos. Use Ctrl ou Command para selecionar vários.</div>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3">
+                <label for="report_management" class="form-label fw-semibold">Gerência</label>
+                <select id="report_management" name="management_unit_id[]" class="form-select" multiple size="6">
+                    <?php foreach ($managementUnits as $managementUnit): ?>
+                        <?php $managementId = (int) ($managementUnit['id'] ?? 0); ?>
+                        <option value="<?= $managementId ?>" <?= in_array($managementId, $criteria->managementUnitIds, true) ? 'selected' : '' ?>>
+                            <?= esc((string) ($managementUnit['name'] ?? '')) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Sem seleção considera todas. Use Ctrl ou Command para selecionar várias.</div>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3 d-flex flex-column justify-content-end gap-2">
+                <div class="form-check">
+                    <input id="report_legacy" name="legacy" value="1" type="checkbox" class="form-check-input" <?= $criteria->legacy ? 'checked' : '' ?>>
+                    <label for="report_legacy" class="form-check-label">Hosts legados</label>
+                </div>
+                <div class="form-check">
+                    <input id="report_appliance" name="appliance" value="1" type="checkbox" class="form-check-input" <?= $criteria->appliance ? 'checked' : '' ?>>
+                    <label for="report_appliance" class="form-check-label">Appliances</label>
+                </div>
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-brand">Gerar relatório</button>
+                <a href="<?= site_url('reports/personalizado') ?>" class="btn btn-outline-secondary">Limpar filtros</a>
+            </div>
+        </form>
+    </div>
+
+    <?php if ($error !== null): ?>
+        <div class="alert alert-warning"><?= esc($error) ?></div>
+    <?php elseif ($submitted): ?>
+        <div class="app-card p-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <span class="fw-semibold"><?= esc((string) count($rows)) ?> host(s) encontrado(s)</span>
+                <?php if ($rows !== []): ?>
+                    <?php
+                    $exportParameters = [
+                        'generate' => '1',
+                        'export' => 'csv',
+                        'date' => $criteria->date,
+                        'os' => $criteria->operatingSystems,
+                        'management_unit_id' => $criteria->managementUnitIds,
+                    ];
+                    if ($criteria->legacy) {
+                        $exportParameters['legacy'] = '1';
+                    }
+                    if ($criteria->appliance) {
+                        $exportParameters['appliance'] = '1';
+                    }
+                    ?>
+                    <a class="btn btn-brand" href="<?= site_url('reports/personalizado?' . http_build_query($exportParameters)) ?>">Exportar CSV</a>
+                <?php endif; ?>
+            </div>
+
+            <?php if ($rows === []): ?>
+                <div class="alert alert-info mb-0">Nenhum host corresponde aos filtros selecionados.</div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>VM</th>
+                            <th>DNS</th>
+                            <th>IP</th>
+                            <th>Sistema operacional</th>
+                            <th>Gerência</th>
+                            <th>Legado</th>
+                            <th>Appliance</th>
+                            <th>Contrato</th>
+                            <th>ASTI</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($rows as $row): ?>
+                            <tr>
+                                <td><?= esc((string) ($row['vm'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['dns_name'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['primary_ip'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['os_name'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['gerencia'] ?? 'Sem registro')) ?></td>
+                                <td><?= (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
+                                <td><?= (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
+                                <td><?= esc((string) ($row['contract'] ?? '')) ?></td>
+                                <td><?= esc((string) ($row['asset_risk_score'] ?? '')) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
