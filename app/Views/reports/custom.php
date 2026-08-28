@@ -13,7 +13,7 @@
 <body>
 <div class="container py-4">
     <?= view('reports/_topbar', [
-        'subtitle' => 'Relatório de hosts com filtros combináveis.',
+        'subtitle' => 'Resumo de VMs com filtros combináveis.',
         'activeMenu' => 'relatorios',
         'activeSubmenu' => 'personalizado',
         'breadcrumbs' => [
@@ -28,7 +28,7 @@
             <span class="app-eyebrow">Filtros</span>
             <h1 class="h4 mt-2 mb-2">Gerar relatório</h1>
             <p class="text-secondary mb-0">
-                Sistema operacional e gerência são cumulativos. Se Legados e Appliances forem marcados juntos, serão exibidos hosts de qualquer uma das categorias.
+                Sistema operacional e gerência são cumulativos. Quando Legados, Appliances ou Migráveis forem marcados juntos, serão consideradas VMs de qualquer uma dessas categorias.
             </p>
         </div>
 
@@ -51,6 +51,14 @@
                             <?= esc($dateLabel) ?>
                         </option>
                     <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3">
+                <label for="report_group_by" class="form-label fw-semibold">Tipo de resumo</label>
+                <select id="report_group_by" name="group_by" class="form-select" required>
+                    <option value="management_unit" <?= $criteria->groupBy === 'management_unit' ? 'selected' : '' ?>>VMs por gerência</option>
+                    <option value="operating_system" <?= $criteria->groupBy === 'operating_system' ? 'selected' : '' ?>>VMs por sistema operacional</option>
                 </select>
             </div>
 
@@ -96,6 +104,10 @@
                     <input id="report_appliance" name="appliance" value="1" type="checkbox" class="form-check-input" <?= $criteria->appliance ? 'checked' : '' ?>>
                     <label for="report_appliance" class="form-check-label">Appliances</label>
                 </div>
+                <div class="form-check">
+                    <input id="report_migrable" name="migrable" value="1" type="checkbox" class="form-check-input" <?= $criteria->migrable ? 'checked' : '' ?>>
+                    <label for="report_migrable" class="form-check-label">Migráveis</label>
+                </div>
             </div>
 
             <div class="col-12 d-flex flex-wrap gap-2">
@@ -110,13 +122,15 @@
     <?php elseif ($submitted): ?>
         <div class="app-card p-3">
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <span class="fw-semibold"><?= esc((string) count($rows)) ?> host(s) encontrado(s)</span>
+                <?php $totalVms = array_sum(array_map(static fn (array $row): int => (int) ($row['vm_count'] ?? 0), $rows)); ?>
+                <span class="fw-semibold"><?= esc((string) $totalVms) ?> VM(s) encontrada(s)</span>
                 <?php if ($rows !== []): ?>
                     <?php
                     $exportParameters = [
                         'generate' => '1',
                         'export' => 'csv',
                         'date' => $criteria->date,
+                        'group_by' => $criteria->groupBy,
                         'os' => $criteria->operatingSystems,
                         'management_unit_id' => $criteria->managementUnitIds,
                     ];
@@ -126,53 +140,66 @@
                     if ($criteria->appliance) {
                         $exportParameters['appliance'] = '1';
                     }
+                    if ($criteria->migrable) {
+                        $exportParameters['migrable'] = '1';
+                    }
                     ?>
                     <a class="btn btn-brand" href="<?= site_url('reports/personalizado?' . http_build_query($exportParameters)) ?>">Exportar CSV</a>
                 <?php endif; ?>
             </div>
 
             <?php if ($rows === []): ?>
-                <div class="alert alert-info mb-0">Nenhum host corresponde aos filtros selecionados.</div>
+                <div class="alert alert-info mb-0">Nenhuma VM corresponde aos filtros selecionados.</div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle mb-0">
                         <thead>
                         <tr>
-                            <th>VM</th>
-                            <th>DNS</th>
-                            <th>IP</th>
-                            <th>Sistema operacional</th>
-                            <th>Gerência</th>
-                            <th>Última atualização</th>
-                            <th>Legado</th>
-                            <th>Appliance</th>
-                            <th>Contrato</th>
-                            <th>ASTI</th>
+                            <th><?= $criteria->groupBy === 'operating_system' ? 'Sistema operacional' : 'Gerência' ?></th>
+                            <th class="text-end">Quantidade de VMs</th>
                         </tr>
                         </thead>
                         <tbody>
+                        <?php
+                        $detailParameters = [
+                            'date' => $criteria->date,
+                            'group_by' => $criteria->groupBy,
+                            'os' => $criteria->operatingSystems,
+                            'management_unit_id' => $criteria->managementUnitIds,
+                        ];
+                        if ($criteria->legacy) {
+                            $detailParameters['legacy'] = '1';
+                        }
+                        if ($criteria->appliance) {
+                            $detailParameters['appliance'] = '1';
+                        }
+                        if ($criteria->migrable) {
+                            $detailParameters['migrable'] = '1';
+                        }
+                        ?>
                         <?php foreach ($rows as $row): ?>
                             <?php
-                            $lastUpdate = (string) ($row['os_last_update_date'] ?? '');
-                            $lastUpdateDate = DateTime::createFromFormat('Y-m-d', $lastUpdate);
-                            if ($lastUpdateDate !== false) {
-                                $lastUpdate = $lastUpdateDate->format('d/m/Y');
-                            }
+                            $rowDetailParameters = $detailParameters + [
+                                'group_name' => (string) ($row['group_name'] ?? 'Sem registro'),
+                            ];
                             ?>
                             <tr>
-                                <td><?= esc((string) ($row['vm'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['dns_name'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['primary_ip'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['os_name_display'] ?? $row['os_name'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['gerencia'] ?? 'Sem registro')) ?></td>
-                                <td><?= esc($lastUpdate) ?></td>
-                                <td><?= (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
-                                <td><?= (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
-                                <td><?= esc((string) ($row['contract'] ?? '')) ?></td>
-                                <td><?= esc((string) ($row['asset_risk_score'] ?? '')) ?></td>
+                                <td>
+                                    <a target="_blank" rel="noopener noreferrer"
+                                       href="<?= site_url('reports/personalizado/detail?' . http_build_query($rowDetailParameters)) ?>">
+                                        <?= esc((string) ($row['group_name'] ?? 'Sem registro')) ?>
+                                    </a>
+                                </td>
+                                <td class="text-end"><?= esc((string) ((int) ($row['vm_count'] ?? 0))) ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
+                        <tfoot>
+                        <tr class="table-light fw-semibold">
+                            <td>Total</td>
+                            <td class="text-end"><?= esc((string) $totalVms) ?></td>
+                        </tr>
+                        </tfoot>
                     </table>
                 </div>
             <?php endif; ?>

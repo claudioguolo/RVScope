@@ -124,25 +124,6 @@ $breadcrumbs = $breadcrumbs ?? [
                    data-bs-toggle="dropdown"
                    aria-expanded="false">Relatórios</a>
                 <ul class="dropdown-menu app-menu-dropdown">
-                    <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'personalizado' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/personalizado') ?>">Relatório personalizado</a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><h6 class="dropdown-header">Appliances</h6></li>
-                    <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-todos' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/appliances/todos') ?>">Todos</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-gerencia' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/appliances') ?>">Por Gerência</a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item <?= $activeSubmenu === 'appliances-gerencia-legados' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/appliances?legacy=1') ?>">Por Gerência - Legados</a>
-                    </li>
-                    <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">VM</h6></li>
                     <li>
                         <a class="dropdown-item <?= $activeSubmenu === 'vm-todos' ? 'active' : '' ?>"
@@ -159,6 +140,10 @@ $breadcrumbs = $breadcrumbs ?? [
                     <li>
                         <a class="dropdown-item <?= $activeSubmenu === 'vm-migraveis' ? 'active' : '' ?>"
                            href="<?= site_url('reports/vm-migraveis') ?>">Migráveis</a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item <?= $activeSubmenu === 'personalizado' ? 'active' : '' ?>"
+                           href="<?= site_url('reports/personalizado') ?>">Relatório personalizado</a>
                     </li>
                 </ul>
             </li>

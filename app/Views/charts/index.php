@@ -40,6 +40,7 @@
         return $date === false ? $value : $date->format('d/m/Y');
     };
     $selectedOperatingSystems = array_fill_keys($criteria->operatingSystems, true);
+    $smoothPathBuilder = new \App\Libraries\SvgSmoothPathBuilder();
     ?>
 
     <form method="get" action="<?= site_url('graficos') ?>" class="app-card p-4 mb-4">
@@ -164,12 +165,13 @@
                         foreach ($line['values'] as $index => $value) {
                             $x = $left + ($plotWidth * $index / $xDivisor);
                             $y = $top + $plotHeight - ($plotHeight * (int) $value / $maximum);
-                            $points[] = $x . ',' . $y;
+                            $points[] = [$x, $y];
                         }
+                        $path = $smoothPathBuilder->build($points);
                         ?>
-                        <polyline class="chart-line" stroke="<?= esc((string) $line['color'], 'attr') ?>" points="<?= esc(implode(' ', $points), 'attr') ?>">
+                        <path class="chart-line" stroke="<?= esc((string) $line['color'], 'attr') ?>" d="<?= esc($path, 'attr') ?>">
                             <title><?= esc((string) $line['name']) ?></title>
-                        </polyline>
+                        </path>
                     <?php endforeach; ?>
                 </svg>
             </div>

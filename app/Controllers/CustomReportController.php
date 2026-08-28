@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Libraries\CustomReportCriteria;
-use App\Libraries\OperatingSystemDisplayName;
 use CodeIgniter\Controller;
 
 class CustomReportController extends Controller
@@ -51,12 +50,12 @@ class CustomReportController extends Controller
             if (! $criteria->hasValidDate() || ! in_array($criteria->date, $dates, true)) {
                 $error = 'Selecione uma data de inventário válida.';
             } else {
-                $rows = $this->loadRows($criteria);
+                $rows = $this->loadSummary($criteria);
             }
         }
 
         if ($submitted && $error === null && $this->request->getGet('export') === 'csv') {
-            return $this->exportCsv($rows, $criteria->date);
+            return $this->exportCsv($rows, $criteria);
         }
 
         return view('reports/custom', [
@@ -70,7 +69,47 @@ class CustomReportController extends Controller
         ]);
     }
 
-    private function loadRows(CustomReportCriteria $criteria): array
+    public function detail()
+    {
+        $criteria = CustomReportCriteria::fromArray($this->request->getGet());
+        $groupName = trim((string) ($this->request->getGet('group_name') ?? ''));
+        if (! $criteria->hasValidDate() || $groupName === '') {
+            return redirect()->to(site_url('reports/personalizado'));
+        }
+
+        $rows = $this->loadDetailRows($criteria, $groupName);
+        if ($this->request->getGet('export') === 'csv') {
+            return $this->exportDetailCsv($rows, $criteria, $groupName);
+        }
+
+        return view('reports/custom_detail', [
+            'criteria' => $criteria,
+            'groupName' => $groupName,
+            'rows' => $rows,
+            'backUrl' => site_url('reports/personalizado?' . http_build_query(
+                $this->criteriaParameters($criteria) + ['generate' => '1']
+            )),
+        ]);
+    }
+
+    private function loadSummary(CustomReportCriteria $criteria): array
+    {
+        $builder = db_connect()->table('rvtools_vm_inventory inv');
+        $builder->join('hosts_info info', 'info.vm = inv.vm', 'left');
+        $builder->join('management_units mu', 'mu.id = info.management_unit_id', 'left');
+        $this->applyFilters($builder, $criteria);
+
+        $groupExpression = $this->groupExpression($criteria);
+
+        return $builder
+            ->select($groupExpression . ' AS group_name, COUNT(*) AS vm_count', false)
+            ->groupBy($groupExpression, false)
+            ->orderBy('group_name', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    private function loadDetailRows(CustomReportCriteria $criteria, string $groupName): array
     {
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
@@ -79,38 +118,22 @@ class CustomReportController extends Controller
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.leg, 0) AS leg,
              COALESCE(info.app, 0) AS app,
+             COALESCE(info.mig, 0) AS mig,
              COALESCE(info.os_last_update_date::text, '') AS os_last_update_date,
              COALESCE(info.contract, '') AS contract,
              COALESCE(info.asset_risk_score, '') AS asset_risk_score"
         );
         $builder->join('hosts_info info', 'info.vm = inv.vm', 'left');
         $builder->join('management_units mu', 'mu.id = info.management_unit_id', 'left');
-        $builder->where('inv.reference_date', $criteria->date);
-        $builder->where('inv.included_in_reports', true);
+        $this->applyFilters($builder, $criteria);
+        $builder->where(
+            $this->groupExpression($criteria) . ' = ' . db_connect()->escape($groupName),
+            null,
+            false,
+        );
 
-        if ($criteria->operatingSystems !== []) {
-            $builder->whereIn('inv.os_name', $criteria->operatingSystems);
-        }
-        if ($criteria->managementUnitIds !== []) {
-            $builder->whereIn('info.management_unit_id', $criteria->managementUnitIds);
-        }
-        if ($criteria->legacy && $criteria->appliance) {
-            $builder->groupStart()
-                ->where('info.leg', 1)
-                ->orWhere('info.app', 1)
-                ->groupEnd();
-        } elseif ($criteria->legacy) {
-            $builder->where('info.leg', 1);
-        } elseif ($criteria->appliance) {
-            $builder->where('info.app', 1);
-        }
-
-        $rows = $builder->orderBy('mu.name', 'ASC')
-            ->orderBy('inv.vm', 'ASC')
-            ->get()
-            ->getResultArray();
-
-        $displayName = new OperatingSystemDisplayName();
+        $rows = $builder->orderBy('inv.vm', 'ASC')->get()->getResultArray();
+        $displayName = new \App\Libraries\OperatingSystemDisplayName();
         foreach ($rows as &$row) {
             $row['os_name_display'] = $displayName->clean(
                 (string) ($row['os_name_display'] ?? $row['os_name'] ?? '')
@@ -121,7 +144,44 @@ class CustomReportController extends Controller
         return $rows;
     }
 
-    private function exportCsv(array $rows, string $date)
+    private function applyFilters($builder, CustomReportCriteria $criteria): void
+    {
+        $builder->where('inv.reference_date', $criteria->date);
+        $builder->where('inv.included_in_reports', true);
+        if ($criteria->operatingSystems !== []) {
+            $builder->whereIn('inv.os_name', $criteria->operatingSystems);
+        }
+        if ($criteria->managementUnitIds !== []) {
+            $builder->whereIn('info.management_unit_id', $criteria->managementUnitIds);
+        }
+        $categoryFilters = [];
+        if ($criteria->legacy) {
+            $categoryFilters[] = ['info.leg', 1];
+        }
+        if ($criteria->appliance) {
+            $categoryFilters[] = ['info.app', 1];
+        }
+        if ($criteria->migrable) {
+            $categoryFilters[] = ['info.mig', 1];
+        }
+        if ($categoryFilters !== []) {
+            $builder->groupStart()
+                ->where($categoryFilters[0][0], $categoryFilters[0][1]);
+            foreach (array_slice($categoryFilters, 1) as [$field, $value]) {
+                $builder->orWhere($field, $value);
+            }
+            $builder->groupEnd();
+        }
+    }
+
+    private function groupExpression(CustomReportCriteria $criteria): string
+    {
+        return $criteria->groupBy === CustomReportCriteria::GROUP_OPERATING_SYSTEM
+            ? "COALESCE(NULLIF(TRIM(inv.os_name), ''), 'Sem registro')"
+            : "COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro')";
+    }
+
+    private function exportCsv(array $rows, CustomReportCriteria $criteria)
     {
         $stream = fopen('php://temp', 'r+');
         if ($stream === false) {
@@ -129,22 +189,14 @@ class CustomReportController extends Controller
         }
 
         fwrite($stream, "\xEF\xBB\xBF");
-        fputcsv($stream, [
-            'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Última atualização', 'Legado', 'Appliance',
-            'Contrato', 'Asset risk score (ASTI)',
-        ], ';', '"', '');
+        $groupLabel = $criteria->groupBy === CustomReportCriteria::GROUP_OPERATING_SYSTEM
+            ? 'Sistema operacional'
+            : 'Gerência';
+        fputcsv($stream, [$groupLabel, 'Quantidade de VMs'], ';', '"', '');
         foreach ($rows as $row) {
             fputcsv($stream, [
-                $row['vm'] ?? '',
-                $row['dns_name'] ?? '',
-                $row['primary_ip'] ?? '',
-                $row['os_name_display'] ?? $row['os_name'] ?? '',
-                $row['gerencia'] ?? 'Sem registro',
-                $this->formatDate((string) ($row['os_last_update_date'] ?? '')),
-                (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não',
-                (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não',
-                $row['contract'] ?? '',
-                $row['asset_risk_score'] ?? '',
+                $row['group_name'] ?? 'Sem registro',
+                (int) ($row['vm_count'] ?? 0),
             ], ';', '"', '');
         }
 
@@ -154,8 +206,65 @@ class CustomReportController extends Controller
 
         return $this->response
             ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
-            ->setHeader('Content-Disposition', 'attachment; filename="RVScope_relatorio_personalizado_' . $date . '.csv"')
+            ->setHeader('Content-Disposition', 'attachment; filename="RVScope_relatorio_personalizado_' . $criteria->date . '.csv"')
             ->setBody($content === false ? '' : $content);
+    }
+
+    private function exportDetailCsv(array $rows, CustomReportCriteria $criteria, string $groupName)
+    {
+        $stream = fopen('php://temp', 'r+');
+        if ($stream === false) {
+            return $this->response->setStatusCode(500)->setBody('Não foi possível gerar o CSV.');
+        }
+
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, [
+            'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Estado', 'Última atualização',
+            'Legado', 'Appliance', 'Migrável', 'Contrato', 'Asset risk score (ASTI)',
+        ], ';', '"', '');
+        foreach ($rows as $row) {
+            fputcsv($stream, [
+                $row['vm'] ?? '',
+                $row['dns_name'] ?? '',
+                $row['primary_ip'] ?? '',
+                $row['os_name_display'] ?? $row['os_name'] ?? '',
+                $row['gerencia'] ?? 'Sem registro',
+                $row['power_state'] ?? '',
+                $this->formatDate((string) ($row['os_last_update_date'] ?? '')),
+                (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não',
+                (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não',
+                (int) ($row['mig'] ?? 0) === 1 ? 'Sim' : 'Não',
+                $row['contract'] ?? '',
+                $row['asset_risk_score'] ?? '',
+            ], ';', '"', '');
+        }
+        rewind($stream);
+        $content = stream_get_contents($stream);
+        fclose($stream);
+
+        $safeGroup = preg_replace('/[^A-Za-z0-9_-]+/', '_', $groupName) ?: 'grupo';
+
+        return $this->response
+            ->setHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->setHeader('Content-Disposition', 'attachment; filename="RVScope_relatorio_personalizado_' . $criteria->date . '_' . $safeGroup . '.csv"')
+            ->setBody($content === false ? '' : $content);
+    }
+
+    private function criteriaParameters(CustomReportCriteria $criteria): array
+    {
+        $parameters = [
+            'date' => $criteria->date,
+            'group_by' => $criteria->groupBy,
+            'os' => $criteria->operatingSystems,
+            'management_unit_id' => $criteria->managementUnitIds,
+        ];
+        foreach (['legacy', 'appliance', 'migrable'] as $flag) {
+            if ($criteria->{$flag}) {
+                $parameters[$flag] = '1';
+            }
+        }
+
+        return $parameters;
     }
 
     private function formatDate(string $value): string
