@@ -66,12 +66,12 @@
                 <table class="table table-sm table-striped align-middle mb-0">
                     <thead>
                     <tr>
+                        <th>#</th>
                         <th>VM</th>
                         <th>DNS</th>
                         <th>IP</th>
                         <th>Sistema operacional</th>
                         <th>Gerência</th>
-                        <th>Estado</th>
                         <th>Última atualização</th>
                         <th>Legado</th>
                         <th>Appliance</th>
@@ -81,7 +81,7 @@
                     </tr>
                     </thead>
                     <tbody>
-                    <?php foreach ($rows as $row): ?>
+                    <?php foreach ($rows as $index => $row): ?>
                         <?php
                         $lastUpdate = (string) ($row['os_last_update_date'] ?? '');
                         $lastUpdateDate = DateTime::createFromFormat('Y-m-d', $lastUpdate);
@@ -90,12 +90,12 @@
                         }
                         ?>
                         <tr>
+                            <td><?= $index + 1 ?></td>
                             <td><?= esc((string) ($row['vm'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['dns_name'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['primary_ip'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['os_name_display'] ?? $row['os_name'] ?? '')) ?></td>
                             <td><?= esc((string) ($row['gerencia'] ?? 'Sem registro')) ?></td>
-                            <td><?= esc((string) ($row['power_state'] ?? '')) ?></td>
                             <td><?= esc($lastUpdate) ?></td>
                             <td><?= (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>
                             <td><?= (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não' ?></td>

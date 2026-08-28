@@ -113,7 +113,7 @@ class CustomReportController extends Controller
     {
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
-            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.power_state,
+            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name,
              COALESCE(NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.leg, 0) AS leg,
@@ -219,17 +219,17 @@ class CustomReportController extends Controller
 
         fwrite($stream, "\xEF\xBB\xBF");
         fputcsv($stream, [
-            'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Estado', 'Última atualização',
+            'Ordem', 'VM', 'DNS', 'IP', 'Sistema operacional', 'Gerência', 'Última atualização',
             'Legado', 'Appliance', 'Migrável', 'Contrato', 'Asset risk score (ASTI)',
         ], ';', '"', '');
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             fputcsv($stream, [
+                $index + 1,
                 $row['vm'] ?? '',
                 $row['dns_name'] ?? '',
                 $row['primary_ip'] ?? '',
                 $row['os_name_display'] ?? $row['os_name'] ?? '',
                 $row['gerencia'] ?? 'Sem registro',
-                $row['power_state'] ?? '',
                 $this->formatDate((string) ($row['os_last_update_date'] ?? '')),
                 (int) ($row['leg'] ?? 0) === 1 ? 'Sim' : 'Não',
                 (int) ($row['app'] ?? 0) === 1 ? 'Sim' : 'Não',
