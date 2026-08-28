@@ -15,11 +15,11 @@
         .chart-grid { stroke: rgba(15, 23, 42, 0.13); stroke-width: 1; }
         .chart-axis { stroke: #64748b; stroke-width: 1.2; }
         .chart-label { fill: #475569; font-size: 13px; }
-        .chart-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-        .chart-point { stroke: #fff; stroke-width: 1.5; }
+        .chart-line { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: none; vector-effect: non-scaling-stroke; }
         .chart-legend { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; }
         .chart-legend-item { display: inline-flex; align-items: center; gap: .45rem; font-size: .875rem; }
         .chart-legend-color { width: 1.5rem; height: .22rem; border-radius: 999px; }
+        .os-filter-list { max-height: 18rem; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -33,8 +33,77 @@
         ],
     ]) ?>
 
-    <?php if (($chart['labels'] ?? []) === [] || ($chart['series'] ?? []) === []): ?>
+    <?php
+    $formatDate = static function (string $value): string {
+        $date = DateTime::createFromFormat('Y-m-d', $value);
+
+        return $date === false ? $value : $date->format('d/m/Y');
+    };
+    $selectedOperatingSystems = array_fill_keys($criteria->operatingSystems, true);
+    ?>
+
+    <form method="get" action="<?= site_url('graficos') ?>" class="app-card p-4 mb-4">
+        <input type="hidden" name="filter" value="1">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <span class="app-eyebrow">Filtros</span>
+                <h1 class="h4 mt-2 mb-1">Histórico por sistema operacional</h1>
+                <p class="text-secondary mb-0">Escolha o período e as linhas que devem aparecer no gráfico.</p>
+            </div>
+            <a class="btn btn-outline-secondary" href="<?= site_url('graficos') ?>">Limpar filtros</a>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6 col-xl-3">
+                <label class="form-label" for="start_date">Data inicial</label>
+                <input class="form-control" type="date" id="start_date" name="start_date"
+                       value="<?= esc($criteria->startDate, 'attr') ?>"
+                       min="<?= esc($oldestDate, 'attr') ?>" max="<?= esc($newestDate, 'attr') ?>">
+                <?php if ($oldestDate !== ''): ?>
+                    <div class="form-text">Mais antiga: <?= esc($formatDate($oldestDate)) ?></div>
+                <?php endif; ?>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <label class="form-label" for="end_date">Data final</label>
+                <input class="form-control" type="date" id="end_date" name="end_date"
+                       value="<?= esc($criteria->endDate, 'attr') ?>"
+                       min="<?= esc($oldestDate, 'attr') ?>" max="<?= esc($newestDate, 'attr') ?>">
+                <?php if ($newestDate !== ''): ?>
+                    <div class="form-text">Mais recente: <?= esc($formatDate($newestDate)) ?></div>
+                <?php endif; ?>
+            </div>
+            <div class="col-xl-6">
+                <fieldset>
+                    <legend class="form-label mb-2">Sistemas operacionais</legend>
+                    <div class="border rounded p-3 os-filter-list">
+                        <div class="form-check mb-2 pb-2 border-bottom">
+                            <input class="form-check-input" type="checkbox" id="select_all_os">
+                            <label class="form-check-label fw-semibold" for="select_all_os">Marcar todos</label>
+                        </div>
+                        <?php foreach ($availableOperatingSystems as $index => $operatingSystem): ?>
+                            <?php $fieldId = 'os_' . $index; ?>
+                            <div class="form-check">
+                                <input class="form-check-input os-checkbox" type="checkbox" name="os[]"
+                                       id="<?= esc($fieldId, 'attr') ?>"
+                                       value="<?= esc($operatingSystem, 'attr') ?>"
+                                       <?= isset($selectedOperatingSystems[$operatingSystem]) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="<?= esc($fieldId, 'attr') ?>"><?= esc($operatingSystem) ?></label>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </fieldset>
+            </div>
+        </div>
+
+        <button class="btn btn-primary mt-3" type="submit">Aplicar filtros</button>
+    </form>
+
+    <?php if ($error !== null): ?>
+        <div class="alert alert-warning"><?= esc($error) ?></div>
+    <?php elseif ($availableOperatingSystems === []): ?>
         <div class="alert alert-info">Nenhum dado histórico disponível.</div>
+    <?php elseif (($chart['labels'] ?? []) === [] || ($chart['series'] ?? []) === []): ?>
+        <div class="alert alert-info">Nenhum dado corresponde aos filtros selecionados.</div>
     <?php else: ?>
         <?php
         $width = 1200;
@@ -101,15 +170,6 @@
                         <polyline class="chart-line" stroke="<?= esc((string) $line['color'], 'attr') ?>" points="<?= esc(implode(' ', $points), 'attr') ?>">
                             <title><?= esc((string) $line['name']) ?></title>
                         </polyline>
-                        <?php foreach ($line['values'] as $index => $value): ?>
-                            <?php
-                            $x = $left + ($plotWidth * $index / $xDivisor);
-                            $y = $top + $plotHeight - ($plotHeight * (int) $value / $maximum);
-                            ?>
-                            <circle class="chart-point" cx="<?= $x ?>" cy="<?= $y ?>" r="4" fill="<?= esc((string) $line['color'], 'attr') ?>">
-                                <title><?= esc((string) $line['name']) ?> — <?= esc((string) $labels[$index]) ?>: <?= (int) $value ?> host(s)</title>
-                            </circle>
-                        <?php endforeach; ?>
                     <?php endforeach; ?>
                 </svg>
             </div>
@@ -127,5 +187,29 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    (() => {
+        const selectAll = document.getElementById('select_all_os');
+        const options = Array.from(document.querySelectorAll('.os-checkbox'));
+        if (!selectAll || options.length === 0) {
+            return;
+        }
+
+        const updateSelectAll = () => {
+            const selected = options.filter((option) => option.checked).length;
+            selectAll.checked = selected === options.length;
+            selectAll.indeterminate = selected > 0 && selected < options.length;
+        };
+
+        selectAll.addEventListener('change', () => {
+            options.forEach((option) => {
+                option.checked = selectAll.checked;
+            });
+            updateSelectAll();
+        });
+        options.forEach((option) => option.addEventListener('change', updateSelectAll));
+        updateSelectAll();
+    })();
+</script>
 </body>
 </html>
