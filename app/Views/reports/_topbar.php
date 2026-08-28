@@ -162,6 +162,11 @@ $breadcrumbs = $breadcrumbs ?? [
                     </li>
                 </ul>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?= $activeMenu === 'graficos' ? 'active' : '' ?>"
+                   <?= $activeMenu === 'graficos' ? 'aria-current="page"' : '' ?>
+                   href="<?= site_url('graficos') ?>">Gráficos</a>
+            </li>
         </ul>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb mb-0">

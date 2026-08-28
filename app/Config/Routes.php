@@ -64,6 +64,7 @@ $routes->group('reports', ['filter' => 'authenticatedReports'], static function 
     $routes->get('detail', 'ReportController::detail');
     $routes->post('detail', 'ReportController::detail', ['filter' => 'csrf']);
 });
+$routes->get('graficos', 'ChartController::index', ['filter' => 'authenticatedReports']);
 $routes->group('import', ['filter' => 'role:editor,admin'], static function ($routes) {
     $routes->get('', 'ImportController::form');
     $routes->post('', 'ImportController::index', ['filter' => 'csrf']);
