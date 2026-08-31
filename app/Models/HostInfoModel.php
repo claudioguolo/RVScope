@@ -19,6 +19,7 @@ class HostInfoModel extends Model
         'technical_responsible_id',
         'contract',
         'asset_risk_score',
+        'operating_system_override',
         'conv',
         'leg',
         'mig',

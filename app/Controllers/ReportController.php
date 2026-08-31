@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\UserAuthorization;
 use App\Libraries\ReportRowFilter;
+use App\Libraries\OperatingSystemPolicyManager;
 use App\Models\HostInfoModel;
 use App\Models\HostRemovalReasonModel;
 use App\Models\ManagementUnitModel;
@@ -765,6 +766,7 @@ class ReportController extends Controller
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
         $osLastUpdateDate = trim((string) ($this->request->getPost('os_last_update_date') ?? ''));
+        $operatingSystemOverride = trim((string) ($this->request->getPost('operating_system_override') ?? ''));
         $migrationTarget = strtolower(trim(
             (string) ($this->request->getPost('migration_target') ?? 'none')
         ));
@@ -786,6 +788,14 @@ class ReportController extends Controller
         }
         if (mb_strlen($assetRiskScore) > 160) {
             return ['success' => false, 'message' => 'O campo Asset risk score deve ter no máximo 160 caracteres.'];
+        }
+        if ($operatingSystemOverride !== '') {
+            $overrideExists = db_connect()->table('operating_system_policies')
+                ->where('os_name', $operatingSystemOverride)
+                ->countAllResults() > 0;
+            if (! $overrideExists) {
+                return ['success' => false, 'message' => 'O sistema operacional fixado não foi encontrado.'];
+            }
         }
 
         if ($managementUnitId > 0) {
@@ -849,6 +859,7 @@ class ReportController extends Controller
             'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
             'contract' => $contract,
             'asset_risk_score' => $assetRiskScore,
+            'operating_system_override' => $operatingSystemOverride !== '' ? $operatingSystemOverride : null,
             'conv' => $conv,
             'leg' => $this->request->getPost('legacy') ? 1 : 0,
             'mig' => $migrationTarget !== 'none' ? 1 : 0,
@@ -860,9 +871,21 @@ class ReportController extends Controller
             'updated_at' => date('Y-m-d H:i:s'),
         ];
 
+        $existing = $infoModel->find($vm);
+        $previousOverride = trim((string) ($existing['operating_system_override'] ?? ''));
+        $db = db_connect();
+        $db->transBegin();
         try {
             $infoModel->save($data);
+            if ($previousOverride !== $operatingSystemOverride) {
+                (new OperatingSystemPolicyManager($db))->applyHostOverride($vm, $operatingSystemOverride);
+            }
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('Database transaction failed.');
+            }
+            $db->transCommit();
         } catch (\Throwable $exception) {
+            $db->transRollback();
             return ['success' => false, 'message' => $exception->getMessage()];
         }
 
@@ -876,7 +899,7 @@ class ReportController extends Controller
             . 'management_units.is_active AS management_unit_is_active, '
             . 'hosts_info.technical_responsible_id, technical_responsibles.name AS owner, '
             . 'technical_responsibles.is_active AS technical_responsible_is_active, '
-            . 'hosts_info.contract, hosts_info.asset_risk_score, '
+            . 'hosts_info.contract, hosts_info.asset_risk_score, hosts_info.operating_system_override, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
         )
@@ -913,6 +936,7 @@ class ReportController extends Controller
                 ),
                 'contract' => trim((string) ($row['contract'] ?? '')),
                 'asset_risk_score' => trim((string) ($row['asset_risk_score'] ?? '')),
+                'operating_system_override' => trim((string) ($row['operating_system_override'] ?? '')),
                 'conv' => $row['conv'] ?? 'Nao informado',
                 'leg' => ((int) ($row['leg'] ?? 0)) ? '1' : '0',
                 'mig' => $isMigrable ? '1' : '0',
@@ -985,7 +1009,8 @@ class ReportController extends Controller
                 'dns' => (string) ($inventoryRow['dns_name'] ?? ''),
                 'ip' => (string) ($inventoryRow['primary_ip'] ?? ''),
                 'os' => (string) (
-                    ($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')
+                    ($info['operating_system_override'] ?? '')
+                    ?: (($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? ''))
                 ),
                 'creation' => $this->resolveCreationDate(
                     $vm,
@@ -1050,7 +1075,8 @@ class ReportController extends Controller
                 'dns' => (string) ($inventoryRow['dns_name'] ?? ''),
                 'ip' => (string) ($inventoryRow['primary_ip'] ?? ''),
                 'os' => (string) (
-                    ($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')
+                    ($info['operating_system_override'] ?? '')
+                    ?: (($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? ''))
                 ),
                 'creation' => $this->resolveCreationDate(
                     $vm,
@@ -1213,12 +1239,8 @@ class ReportController extends Controller
                 continue;
             }
 
-            $osValue = (string) ($line[$idxOS] ?? '');
-            if (! $this->osMatch($osValue, $osFilter)) {
-                continue;
-            }
-
             $vm = (string) ($line[$idxVM] ?? '');
+            $osValue = (string) ($line[$idxOS] ?? '');
             $dns = (string) ($line[$idxDNS] ?? '');
             $ip = $idxIP !== null ? (string) ($line[$idxIP] ?? '') : '';
             $creationRaw = $idxCD !== null ? (string) ($line[$idxCD] ?? '') : '';
@@ -1230,13 +1252,17 @@ class ReportController extends Controller
             $annotation = $this->sanitizeUtf8($annotation);
 
             $info = $infoMap[$vm] ?? $this->defaultInfo();
+            $effectiveOs = (string) (($info['operating_system_override'] ?? '') ?: $osValue);
+            if (! $this->osMatch($effectiveOs, $osFilter)) {
+                continue;
+            }
             $creation = $this->resolveCreationDate($vm, $creationRaw, $infoMap);
 
             $rows[] = [
                 'vm' => $vm,
                 'dns' => $dns,
                 'ip' => $ip,
-                'os' => $osValue,
+                'os' => $effectiveOs,
                 'creation' => $creation,
                 'annotation' => $annotation,
                 'info' => $info,
@@ -1423,6 +1449,7 @@ class ReportController extends Controller
             'technical_responsible_is_active' => true,
             'contract' => '',
             'asset_risk_score' => '',
+            'operating_system_override' => '',
             'conv' => 'Nao informado',
             'leg' => '0',
             'mig' => '0',
@@ -1455,6 +1482,10 @@ class ReportController extends Controller
             ->orderBy('name', 'ASC')
             ->findAll();
         $relationships = (new ManagementUnitTechnicalResponsibleModel())->findAll();
+        $operatingSystems = db_connect()->table('operating_system_policies')
+            ->select('os_name')
+            ->orderBy('LOWER(os_name)', 'ASC', false)
+            ->get()->getResultArray();
 
         $responsiblesById = [];
         foreach ($technicalResponsibles as $responsible) {
@@ -1485,6 +1516,7 @@ class ReportController extends Controller
         return [
             'managementUnits' => $managementUnits,
             'technicalResponsiblesByManagementUnit' => $responsiblesByManagementUnit,
+            'operatingSystems' => array_column($operatingSystems, 'os_name'),
         ];
     }
 

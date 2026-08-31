@@ -118,9 +118,10 @@ class CustomReportController extends Controller
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
             "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.annotation,
-             COALESCE(NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
+             COALESCE(NULLIF(TRIM(info.operating_system_override), ''), NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.desc, 'Sem registro') AS description,
+             COALESCE(info.operating_system_override, '') AS operating_system_override,
              info.management_unit_id,
              COALESCE(mu.is_active, FALSE) AS management_unit_is_active,
              info.technical_responsible_id,
@@ -324,9 +325,15 @@ class CustomReportController extends Controller
         }
         unset($responsibles);
 
+        $operatingSystems = db_connect()->table('operating_system_policies')
+            ->select('os_name')
+            ->orderBy('LOWER(os_name)', 'ASC', false)
+            ->get()->getResultArray();
+
         return [
             'managementUnits' => $managementUnits,
             'technicalResponsiblesByManagementUnit' => $byManagementUnit,
+            'operatingSystems' => array_column($operatingSystems, 'os_name'),
         ];
     }
 }

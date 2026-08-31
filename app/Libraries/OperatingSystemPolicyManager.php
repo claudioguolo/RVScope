@@ -65,6 +65,69 @@ final class OperatingSystemPolicyManager
         }
     }
 
+    public function applyHostOverride(string $vm, string $operatingSystemOverride): void
+    {
+        $policyRows = $this->db->table('operating_system_policies')
+            ->select('os_name, normalized_name, is_ignored')
+            ->get()->getResultArray();
+        $policies = [];
+        $ignoredNormalized = [];
+        foreach ($policyRows as $row) {
+            $ignored = in_array($row['is_ignored'] ?? false, [true, 1, '1', 't', 'true'], true);
+            $policies[(string) ($row['os_name'] ?? '')] = $ignored;
+            if ($ignored && (string) ($row['normalized_name'] ?? '') !== '') {
+                $ignoredNormalized[(string) $row['normalized_name']] = true;
+            }
+        }
+
+        $normalizer = new OperatingSystemNameNormalizer((int) config('Rvtools')->osMaxLength);
+        $inclusionPolicy = new OperatingSystemInclusionPolicy();
+        $lastKnownOperatingSystem = '';
+        $updates = [];
+        $rows = $this->db->table('rvtools_vm_inventory')
+            ->select('id, power_state, os_name_raw')
+            ->where('vm', $vm)
+            ->orderBy('reference_date', 'ASC')
+            ->get()->getResultArray();
+        foreach ($rows as $row) {
+            $powerState = (string) ($row['power_state'] ?? '');
+            $rawOperatingSystem = trim((string) ($row['os_name_raw'] ?? ''));
+            $effectiveOperatingSystem = $operatingSystemOverride !== ''
+                ? $operatingSystemOverride
+                : $rawOperatingSystem;
+            $normalized = $effectiveOperatingSystem !== ''
+                && strcasecmp($effectiveOperatingSystem, 'nan') !== 0
+                ? $normalizer->normalize($effectiveOperatingSystem)
+                : '';
+            $included = $inclusionPolicy->included(
+                $powerState,
+                $effectiveOperatingSystem,
+                $normalized,
+                $policies,
+            );
+            if ($operatingSystemOverride === ''
+                && $powerState === 'poweredOn'
+                && $normalized === ''
+                && $lastKnownOperatingSystem !== ''
+                && ! isset($ignoredNormalized[$lastKnownOperatingSystem])) {
+                $normalized = $lastKnownOperatingSystem;
+                $included = true;
+            }
+            if ($operatingSystemOverride === '' && $rawOperatingSystem !== '' && $included) {
+                $lastKnownOperatingSystem = $normalized;
+            }
+            $updates[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'os_name' => $normalized,
+                'included_in_reports' => $included,
+            ];
+        }
+        if ($updates !== []) {
+            $this->db->table('rvtools_vm_inventory')->updateBatch($updates, 'id');
+        }
+        $this->rebuildSummaries();
+    }
+
     private function synchronizeDetectedOperatingSystems(): void
     {
         $this->db->query(
@@ -87,6 +150,15 @@ final class OperatingSystemPolicyManager
     {
         $this->db->query(
             "UPDATE rvtools_vm_inventory inventory
+             SET os_name = policy.normalized_name
+             FROM hosts_info info
+             INNER JOIN operating_system_policies policy
+               ON policy.os_name = info.operating_system_override
+             WHERE info.vm = inventory.vm
+               AND TRIM(COALESCE(info.operating_system_override, '')) <> ''"
+        );
+        $this->db->query(
+            "UPDATE rvtools_vm_inventory inventory
              SET included_in_reports = (
                  inventory.power_state = 'poweredOn'
                  AND TRIM(COALESCE(inventory.os_name, '')) <> ''
@@ -94,7 +166,14 @@ final class OperatingSystemPolicyManager
                      SELECT 1
                      FROM operating_system_policies policy
                      WHERE (
-                            policy.os_name = inventory.os_name_raw
+                            policy.os_name = COALESCE(
+                                NULLIF((
+                                    SELECT info.operating_system_override
+                                    FROM hosts_info info
+                                    WHERE info.vm = inventory.vm
+                                ), ''),
+                                inventory.os_name_raw
+                            )
                             OR (
                                 TRIM(COALESCE(inventory.os_name_raw, '')) = ''
                                 AND policy.normalized_name = inventory.os_name
@@ -104,6 +183,11 @@ final class OperatingSystemPolicyManager
                  )
              )"
         );
+        $this->rebuildSummaries();
+    }
+
+    private function rebuildSummaries(): void
+    {
         $this->db->table('rvtools_os_summary')->emptyTable();
         $this->db->query(
             "WITH available_dates AS (

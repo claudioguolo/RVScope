@@ -22,6 +22,8 @@ class RvtoolsImporter
     private OperatingSystemInclusionPolicy $operatingSystemPolicy;
     private array $operatingSystemPolicies = [];
     private array $ignoredNormalizedOperatingSystems = [];
+    private OperatingSystemNameNormalizer $operatingSystemNameNormalizer;
+    private array $hostOperatingSystemOverrides = [];
 
     public function __construct(?BaseConnection $db = null, ?RvtoolsConfig $config = null)
     {
@@ -32,11 +34,13 @@ class RvtoolsImporter
         $this->fileInspector = new RvtoolsCsvFileInspector();
         $this->osFallbackResolver = new RvtoolsOsFallbackResolver();
         $this->operatingSystemPolicy = new OperatingSystemInclusionPolicy();
-        $this->operatingSystemPolicies = $this->loadOperatingSystemPolicies();
 
         $config = $config ?? config('Rvtools');
         $this->importPath = $this->resolveImportPath($config->importPath);
         $this->osMaxLength = $config->osMaxLength;
+        $this->operatingSystemNameNormalizer = new OperatingSystemNameNormalizer($this->osMaxLength);
+        $this->operatingSystemPolicies = $this->loadOperatingSystemPolicies();
+        $this->hostOperatingSystemOverrides = $this->loadHostOperatingSystemOverrides();
     }
 
     public function importAll(): array
@@ -474,15 +478,16 @@ class RvtoolsImporter
 
             $power = $this->sanitizeUtf8(trim((string) ($row[$powerIndex] ?? '')));
             $os = $this->sanitizeUtf8(trim((string) ($row[$osIndex] ?? '')));
-            $normalized = $os !== '' && strcasecmp($os, 'nan') !== 0
-                ? $this->normalizeOs($os)
+            $effectiveOs = $this->hostOperatingSystemOverrides[$vm] ?? $os;
+            $normalized = $effectiveOs !== '' && strcasecmp($effectiveOs, 'nan') !== 0
+                ? $this->normalizeOs($effectiveOs)
                 : '';
             if ($normalized !== '') {
                 $detectedOperatingSystems[$os] = true;
             }
             $included = $this->operatingSystemPolicy->included(
                 $power,
-                $os,
+                $effectiveOs,
                 $normalized,
                 $this->operatingSystemPolicies,
             );
@@ -619,42 +624,30 @@ class RvtoolsImporter
 
     private function normalizeOs(string $os): string
     {
-        if ($this->startsWith($os, 'CentOS')) {
-            return 'CentOS';
-        }
-
-        if (
-            $this->startsWith($os, 'Other')
-            || $this->startsWith($os, 'SUSE ')
-            || $this->startsWith($os, 'FreeB')
-        ) {
-            return 'Other';
-        }
-
-        $clean = str_replace(' (64-bit)', '', $os);
-        $clean = trim($clean);
-
-        if (strlen($clean) > $this->osMaxLength) {
-            $clean = substr($clean, 0, $this->osMaxLength);
-        }
-
-        return $clean;
+        return $this->operatingSystemNameNormalizer->normalize($os);
     }
 
-    private function startsWith(string $value, string $prefix): bool
+    private function loadHostOperatingSystemOverrides(): array
     {
-        return strncmp($value, $prefix, strlen($prefix)) === 0;
-    }
+        if (! $this->db->tableExists('hosts_info')
+            || ! $this->db->fieldExists('operating_system_override', 'hosts_info')) {
+            return [];
+        }
 
-    private function startsWithAny(string $value, array $prefixes): bool
-    {
-        foreach ($prefixes as $prefix) {
-            if ($this->startsWith($value, $prefix)) {
-                return true;
+        $overrides = [];
+        foreach ($this->db->table('hosts_info')
+            ->select('vm, operating_system_override')
+            ->where('operating_system_override IS NOT NULL', null, false)
+            ->where('operating_system_override !=', '')
+            ->get()->getResultArray() as $row) {
+            $vm = trim((string) ($row['vm'] ?? ''));
+            $operatingSystem = trim((string) ($row['operating_system_override'] ?? ''));
+            if ($vm !== '' && $operatingSystem !== '') {
+                $overrides[$vm] = $operatingSystem;
             }
         }
 
-        return false;
+        return $overrides;
     }
 
     private function resolveImportPath(string $configuredPath): string

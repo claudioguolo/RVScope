@@ -125,6 +125,7 @@
                                     data-technical-responsible-active="<?= in_array($row['technical_responsible_is_active'] ?? false, [true, 1, '1', 't', 'true'], true) ? '1' : '0' ?>"
                                     data-contract="<?= esc((string) ($row['contract'] ?? ''), 'attr') ?>"
                                     data-asset-risk-score="<?= esc((string) ($row['asset_risk_score'] ?? ''), 'attr') ?>"
+                                    data-operating-system-override="<?= esc((string) ($row['operating_system_override'] ?? ''), 'attr') ?>"
                                     data-conv="<?= esc((string) ($row['conv'] ?? 'Nao informado'), 'attr') ?>"
                                     data-leg="<?= (int) ($row['leg'] ?? 0) ?>"
                                     data-migration-target="<?= esc((string) ($row['migration_target'] ?? 'none'), 'attr') ?>"
@@ -161,7 +162,7 @@
                 <label class="form-label mt-2" for="desc">Descrição</label>
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
 
-                <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits]) ?>
+                <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits, 'operatingSystems' => $operatingSystems]) ?>
                 <?= view('reports/_inactive_assignment_warning') ?>
 
                 <label class="form-label mt-2" for="contract">Contrato</label>
@@ -274,6 +275,7 @@ if (infoModal) {
         );
         document.getElementById('contract').value = button.getAttribute('data-contract') || '';
         document.getElementById('asset_risk_score').value = button.getAttribute('data-asset-risk-score') || '';
+        document.getElementById('operating_system_override').value = button.getAttribute('data-operating-system-override') || '';
         document.getElementById('conv').value = button.getAttribute('data-conv') || '';
         document.getElementById('legacy').checked = button.getAttribute('data-leg') === '1';
         document.getElementById('migration_target').value = button.getAttribute('data-migration-target') || 'none';
