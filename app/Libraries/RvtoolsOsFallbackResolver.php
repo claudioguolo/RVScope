@@ -4,14 +4,17 @@ namespace App\Libraries;
 
 final class RvtoolsOsFallbackResolver
 {
-    public function apply(array $inventory, array $lastKnownOsByVm): array
+    public function apply(array $inventory, array $lastKnownOsByVm, array $ignoredOperatingSystems = []): array
     {
         foreach ($inventory as $vm => &$snapshot) {
             $isPoweredOn = (string) ($snapshot['power_state'] ?? '') === 'poweredOn';
             $currentOs = trim((string) ($snapshot['os_name'] ?? ''));
             $lastKnownOs = trim((string) ($lastKnownOsByVm[$vm] ?? ''));
 
-            if ($isPoweredOn && $currentOs === '' && $lastKnownOs !== '') {
+            if ($isPoweredOn
+                && $currentOs === ''
+                && $lastKnownOs !== ''
+                && ! isset($ignoredOperatingSystems[$lastKnownOs])) {
                 $snapshot['os_name'] = $lastKnownOs;
                 $snapshot['included_in_reports'] = true;
             }

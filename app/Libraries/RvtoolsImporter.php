@@ -19,6 +19,9 @@ class RvtoolsImporter
     private int $osMaxLength;
     private RvtoolsCsvFileInspector $fileInspector;
     private RvtoolsOsFallbackResolver $osFallbackResolver;
+    private OperatingSystemInclusionPolicy $operatingSystemPolicy;
+    private array $operatingSystemPolicies = [];
+    private array $ignoredNormalizedOperatingSystems = [];
 
     public function __construct(?BaseConnection $db = null, ?RvtoolsConfig $config = null)
     {
@@ -28,6 +31,8 @@ class RvtoolsImporter
         $this->importLogModel = new RvtoolsImportLogModel($this->db);
         $this->fileInspector = new RvtoolsCsvFileInspector();
         $this->osFallbackResolver = new RvtoolsOsFallbackResolver();
+        $this->operatingSystemPolicy = new OperatingSystemInclusionPolicy();
+        $this->operatingSystemPolicies = $this->loadOperatingSystemPolicies();
 
         $config = $config ?? config('Rvtools');
         $this->importPath = $this->resolveImportPath($config->importPath);
@@ -209,10 +214,12 @@ class RvtoolsImporter
                 if ($inventory === []) {
                     throw new RuntimeException('CSV does not contain inventory rows.');
                 }
+                $this->registerOperatingSystems($scan['detected_operating_systems']);
 
                 $inventory = $this->osFallbackResolver->apply(
                     $inventory,
                     $this->loadLatestKnownOsMap($referenceDate, array_keys($inventory)),
+                    $this->ignoredNormalizedOperatingSystems,
                 );
                 $summary = $this->osFallbackResolver->summarize($inventory);
 
@@ -455,6 +462,7 @@ class RvtoolsImporter
         }
 
         $inventory = [];
+        $detectedOperatingSystems = [];
         $filename = basename($filePath);
         $importedAt = date('Y-m-d H:i:s');
 
@@ -469,9 +477,15 @@ class RvtoolsImporter
             $normalized = $os !== '' && strcasecmp($os, 'nan') !== 0
                 ? $this->normalizeOs($os)
                 : '';
-            $included = $power === 'poweredOn'
-                && $normalized !== ''
-                && ! $this->startsWithAny($os, ['Microsoft', 'VMware', 'Forti']);
+            if ($normalized !== '') {
+                $detectedOperatingSystems[$os] = true;
+            }
+            $included = $this->operatingSystemPolicy->included(
+                $power,
+                $os,
+                $normalized,
+                $this->operatingSystemPolicies,
+            );
 
             $rawData = [];
             foreach ($header as $columnIndex => $columnName) {
@@ -513,7 +527,62 @@ class RvtoolsImporter
 
         return [
             'inventory' => $inventory,
+            'detected_operating_systems' => array_keys($detectedOperatingSystems),
         ];
+    }
+
+    private function loadOperatingSystemPolicies(): array
+    {
+        if (! $this->db->tableExists('operating_system_policies')) {
+            return [];
+        }
+
+        $policies = [];
+        foreach ($this->db->table('operating_system_policies')->select('os_name, normalized_name, is_ignored')->get()->getResultArray() as $row) {
+            $name = trim((string) ($row['os_name'] ?? ''));
+            if ($name !== '') {
+                $ignored = in_array($row['is_ignored'] ?? false, [true, 1, '1', 't', 'true'], true);
+                $policies[$name] = $ignored;
+                $normalized = trim((string) ($row['normalized_name'] ?? ''));
+                if ($ignored && $normalized !== '') {
+                    $this->ignoredNormalizedOperatingSystems[$normalized] = true;
+                }
+            }
+        }
+
+        return $policies;
+    }
+
+    private function registerOperatingSystems(array $operatingSystems): void
+    {
+        if (! $this->db->tableExists('operating_system_policies')) {
+            return;
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $rows = [];
+        foreach ($operatingSystems as $operatingSystem) {
+            $name = trim((string) $operatingSystem);
+            if ($name === '' || array_key_exists($name, $this->operatingSystemPolicies)) {
+                continue;
+            }
+            $ignored = $this->operatingSystemPolicy->ignoredByDefault($name);
+            $this->operatingSystemPolicies[$name] = $ignored;
+            $normalized = $this->normalizeOs($name);
+            if ($ignored) {
+                $this->ignoredNormalizedOperatingSystems[$normalized] = true;
+            }
+            $rows[] = [
+                'os_name' => $name,
+                'normalized_name' => $normalized,
+                'is_ignored' => $ignored,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+        if ($rows !== []) {
+            $this->db->table('operating_system_policies')->ignore(true)->insertBatch($rows);
+        }
     }
 
     private function sanitizeUtf8(string $value): string

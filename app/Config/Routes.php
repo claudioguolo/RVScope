@@ -48,6 +48,10 @@ $routes->group('admin/host-management-migration', ['filter' => 'role:admin'], st
     $routes->get('', 'BatchHostManagementController::index');
     $routes->post('', 'BatchHostManagementController::migrate', ['filter' => 'csrf']);
 });
+$routes->group('admin/operating-systems', ['filter' => 'role:admin'], static function ($routes) {
+    $routes->get('', 'OperatingSystemPolicyController::index');
+    $routes->post('', 'OperatingSystemPolicyController::update', ['filter' => 'csrf']);
+});
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
     $routes->get('personalizado', 'CustomReportController::index');
     $routes->get('personalizado/detail', 'CustomReportController::detail');

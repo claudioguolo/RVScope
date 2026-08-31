@@ -45,4 +45,18 @@ final class RvtoolsOsFallbackResolverTest extends TestCase
         self::assertFalse($inventory['unknown']['included_in_reports']);
         self::assertSame([], $resolver->summarize($inventory));
     }
+
+    public function testDoesNotRestoreAnAdministrativelyIgnoredOperatingSystem(): void
+    {
+        $inventory = (new RvtoolsOsFallbackResolver())->apply([
+            'ignored-vm' => [
+                'power_state' => 'poweredOn',
+                'os_name' => '',
+                'included_in_reports' => false,
+            ],
+        ], ['ignored-vm' => 'Microsoft Windows Server'], ['Microsoft Windows Server' => true]);
+
+        self::assertSame('', $inventory['ignored-vm']['os_name']);
+        self::assertFalse($inventory['ignored-vm']['included_in_reports']);
+    }
 }
