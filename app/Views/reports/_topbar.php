@@ -143,7 +143,7 @@ $breadcrumbs = $breadcrumbs ?? [
                     </li>
                     <li>
                         <a class="dropdown-item <?= $activeSubmenu === 'personalizado' ? 'active' : '' ?>"
-                           href="<?= site_url('reports/personalizado') ?>">Relatório personalizado</a>
+                           href="<?= site_url('reports/personalizado') ?>">Relatório Personalizado</a>
                     </li>
                 </ul>
             </li>

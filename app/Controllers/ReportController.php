@@ -31,6 +31,20 @@ class ReportController extends Controller
         ]);
     }
 
+    public function saveHostInfo()
+    {
+        $result = $this->handleSave(new HostInfoModel());
+        $returnTo = trim((string) ($this->request->getPost('return_to') ?? ''));
+        if (! str_starts_with($returnTo, 'reports/personalizado/detail?')) {
+            $returnTo = 'reports/personalizado';
+        }
+
+        return redirect()->to(site_url($returnTo))->with('hostInfoAlert', [
+            'type' => $result['success'] ? 'success' : 'danger',
+            'message' => $result['success'] ? 'Salvo com sucesso!' : 'Erro: ' . $result['message'],
+        ]);
+    }
+
     public function vmTodos()
     {
         return $this->renderVmTodos([

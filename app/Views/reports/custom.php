@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>RVScope | Relatório personalizado</title>
+    <title>RVScope | Relatório Personalizado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="icon" href="<?= base_url('favicon.svg') ?>">
     <meta name="application-name" content="RVScope">
-    <meta name="description" content="RVScope - Relatório personalizado de hosts.">
+    <meta name="description" content="RVScope - Relatório Personalizado de hosts.">
     <?= view('reports/_theme') ?>
 </head>
 <body>
@@ -19,7 +19,7 @@
         'breadcrumbs' => [
             ['label' => 'Início', 'url' => site_url('/')],
             ['label' => 'Relatórios'],
-            ['label' => 'Personalizado', 'active' => true],
+            ['label' => 'Relatório Personalizado', 'active' => true],
         ],
     ]) ?>
 

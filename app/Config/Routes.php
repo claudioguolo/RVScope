@@ -51,6 +51,7 @@ $routes->group('admin/host-management-migration', ['filter' => 'role:admin'], st
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
     $routes->get('personalizado', 'CustomReportController::index');
     $routes->get('personalizado/detail', 'CustomReportController::detail');
+    $routes->post('host-info', 'ReportController::saveHostInfo', ['filter' => 'csrf']);
     $routes->get('vm', 'ReportController::vmTodos');
     $routes->get('vm-migraveis', 'ReportController::vmMigraveis');
     $routes->get('vm-migraveis/detail', 'ReportController::vmMigraveisDetail');

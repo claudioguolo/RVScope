@@ -3,6 +3,9 @@
 namespace App\Controllers;
 
 use App\Libraries\CustomReportCriteria;
+use App\Models\ManagementUnitModel;
+use App\Models\ManagementUnitTechnicalResponsibleModel;
+use App\Models\TechnicalResponsibleModel;
 use CodeIgniter\Controller;
 
 class CustomReportController extends Controller
@@ -89,7 +92,8 @@ class CustomReportController extends Controller
             'backUrl' => site_url('reports/personalizado?' . http_build_query(
                 $this->criteriaParameters($criteria) + ['generate' => '1']
             )),
-        ]);
+            'alert' => session()->getFlashdata('hostInfoAlert'),
+        ] + $this->hostCatalogViewData());
     }
 
     private function loadSummary(CustomReportCriteria $criteria): array
@@ -113,18 +117,29 @@ class CustomReportController extends Controller
     {
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
-            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name,
+            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.annotation,
              COALESCE(NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
+             COALESCE(info.desc, 'Sem registro') AS description,
+             info.management_unit_id,
+             COALESCE(mu.is_active, FALSE) AS management_unit_is_active,
+             info.technical_responsible_id,
+             COALESCE(tr.name, 'Sem registro') AS owner,
+             COALESCE(tr.is_active, FALSE) AS technical_responsible_is_active,
              COALESCE(info.leg, 0) AS leg,
              COALESCE(info.app, 0) AS app,
              COALESCE(info.mig, 0) AS mig,
+             COALESCE(info.migration_target, 'none') AS migration_target,
+             COALESCE(info.worker, 'none') AS worker,
+             COALESCE(info.conv, 'Nao informado') AS conv,
+             COALESCE(info.creation_date, '') AS host_creation_date,
              COALESCE(info.os_last_update_date::text, '') AS os_last_update_date,
              COALESCE(info.contract, '') AS contract,
              COALESCE(info.asset_risk_score, '') AS asset_risk_score"
         );
         $builder->join('hosts_info info', 'info.vm = inv.vm', 'left');
         $builder->join('management_units mu', 'mu.id = info.management_unit_id', 'left');
+        $builder->join('technical_responsibles tr', 'tr.id = info.technical_responsible_id', 'left');
         $this->applyFilters($builder, $criteria);
         $builder->where(
             $this->groupExpression($criteria) . ' = ' . db_connect()->escape($groupName),
@@ -272,5 +287,46 @@ class CustomReportController extends Controller
         $date = \DateTime::createFromFormat('Y-m-d', $value);
 
         return $date === false ? $value : $date->format('d/m/Y');
+    }
+
+    private function hostCatalogViewData(): array
+    {
+        $managementUnits = (new ManagementUnitModel())
+            ->where('is_deleted', false)
+            ->where('is_active', true)
+            ->orderBy('name', 'ASC')
+            ->findAll();
+        $activeResponsibles = (new TechnicalResponsibleModel())
+            ->where('is_active', true)
+            ->orderBy('name', 'ASC')
+            ->findAll();
+        $responsiblesById = [];
+        foreach ($activeResponsibles as $responsible) {
+            $id = (int) ($responsible['id'] ?? 0);
+            if ($id > 0) {
+                $responsiblesById[$id] = ['id' => $id, 'name' => (string) ($responsible['name'] ?? '')];
+            }
+        }
+
+        $byManagementUnit = [];
+        foreach ((new ManagementUnitTechnicalResponsibleModel())->findAll() as $relationship) {
+            $managementId = (int) ($relationship['management_unit_id'] ?? 0);
+            $responsibleId = (int) ($relationship['technical_responsible_id'] ?? 0);
+            if ($managementId > 0 && isset($responsiblesById[$responsibleId])) {
+                $byManagementUnit[$managementId][] = $responsiblesById[$responsibleId];
+            }
+        }
+        foreach ($byManagementUnit as &$responsibles) {
+            usort($responsibles, static fn (array $left, array $right): int => strcasecmp(
+                (string) ($left['name'] ?? ''),
+                (string) ($right['name'] ?? '')
+            ));
+        }
+        unset($responsibles);
+
+        return [
+            'managementUnits' => $managementUnits,
+            'technicalResponsiblesByManagementUnit' => $byManagementUnit,
+        ];
     }
 }
