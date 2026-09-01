@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    image: rvscope-app:production
+    pull_policy: never
+    environment:
+      CI_ENVIRONMENT: production
+      APP_STAGE: production
+      APP_IMAGE_TAG: ${RVSCOPE_GIT_COMMIT:-local-production}

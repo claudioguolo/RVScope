@@ -2,6 +2,11 @@
 
 Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise de CSVs do RVTools.
 
+O sistema mantém snapshots históricos do inventário, permite complementar os
+dados de cada host e oferece relatórios, exportações CSV e gráficos. O catálogo
+atual de recursos e regras de negócio está em
+[`docs/funcionalidades.md`](docs/funcionalidades.md).
+
 ## Requisitos
 - Docker Engine + Docker Compose
 - Porta 8443 liberada (HTTPS)
@@ -10,6 +15,7 @@ Aplicação de relatórios baseada em CodeIgniter 4 para importação e análise
 ## Estrutura
 - `docker-compose.yaml` — homologação com imagem autocontida do Harbor
 - `docker-compose.dev.yaml` — arquivo local ignorado pelo Git, usado no Mac para desenvolvimento
+- `docker-compose.production-local.yaml` — complemento para construir a imagem no servidor de produção sem Harbor
 - `docker/php/` — Dockerfile e configs do Apache (HTTP/HTTPS)
 - `app/` — código da aplicação
 - `imports/` — diretório de CSVs a serem importados
@@ -136,16 +142,21 @@ solicitada sem eco.
 
 ## Migrations
 ```bash
-docker compose exec app php /var/www/html/spark migrate
+docker compose exec -T app php spark migrate --all
+docker compose exec -T app php spark migrate:status
 ```
 
-## Atualização em homologação (Gitea -> Harbor -> Servidor)
-Diretório de homologação: `/home/claudio/Docker/rvscope`
+O `entrypoint` também executa automaticamente as migrations pendentes antes de
+iniciar o Apache. Todas as alterações de esquema devem ser feitas por migration;
+não edite tabelas manualmente como parte de um deploy normal.
+
+## Atualização em homologação (Gitea → Harbor)
+
+Diretório de homologação: `/dados/sistemas/rvscope-hom`.
 
 ### 1. Acessar o servidor e entrar na pasta da aplicação
 ```bash
-ssh claudio@192.168.0.51
-cd /home/claudio/Docker/rvscope
+cd /dados/sistemas/rvscope-hom
 ```
 
 ### 2. Gerar backup do banco de dados
@@ -183,12 +194,12 @@ O `entrypoint` do container `app` já executa migrations na inicialização.
 
 Para conferir status manualmente:
 ```bash
-docker compose exec app php /var/www/html/spark migrate:status
+docker compose exec -T app php spark migrate:status
 ```
 
 Para forçar execução:
 ```bash
-docker compose exec app php /var/www/html/spark migrate --all
+docker compose exec -T app php spark migrate --all
 ```
 
 ### Atualização automatizada do container
@@ -203,6 +214,35 @@ do diretório do projeto, informando a tag imutável de 12 caracteres:
 O script atualiza `RVSCOPE_IMAGE_TAG` no `.env`, baixa a imagem, recria somente
 o serviço `app`, valida a resposta HTTPS e exibe o estado das migrations. Em
 caso de falha, ele restaura a tag anterior e tenta recriar a aplicação.
+
+## Atualização em produção (GitHub → build local)
+
+O servidor de produção usa o checkout em `/dados/sistemas/rvscope`, baixa o
+código do GitHub pelo remoto `origin` e não depende do Harbor. Depois de gerar e
+validar o backup do PostgreSQL, execute:
+
+```bash
+cd /dados/sistemas/rvscope
+./scripts/update-production-from-github.sh
+```
+
+O script exige a árvore Git limpa, executa `git pull --ff-only origin main`,
+valida o Compose, constrói a imagem local autocontida, recria somente `app` e
+confere o estado do container e das migrations. O complemento
+`docker-compose.production-local.yaml` substitui a imagem do Harbor por
+`rvscope-app:production` apenas nesse fluxo.
+
+Para conferir manualmente o Compose efetivo:
+
+```bash
+docker compose \
+  -f docker-compose.yaml \
+  -f docker-compose.production-local.yaml \
+  config
+```
+
+O procedimento detalhado, incluindo backup, validação e retorno, está em
+[`docs/runbook-producao.md`](docs/runbook-producao.md).
 
 ## Importação de CSVs
 Coloque os arquivos em `imports/` com o padrão:
@@ -240,6 +280,12 @@ conhecido dessa mesma VM em uma data anterior. O campo bruto permanece vazio
 no snapshot para auditoria. Snapshots antigos com esse falso negativo são
 detectados como incompletos e reprocessados quando a importação é executada
 novamente.
+
+Um administrador também pode fixar um sistema operacional nos detalhes do
+host. Esse valor passa a ter prioridade sobre a detecção diária do VMware Tools
+nos resumos, relatórios e gráficos, sem apagar o valor bruto importado. A tela
+**Administração > Sistemas operacionais** permite escolher quais valores
+detectados serão ignorados; qualquer mudança recalcula os snapshots históricos.
 
 Os arquivos históricos permanecem fora do Git em `arquivos_csv/`. O Compose
 monta esse diretório em modo somente leitura em `/app/arquivos_csv`.
@@ -318,4 +364,4 @@ docker compose down
 - `.env`, `certs/` e `*.db` não são versionados (ver `.gitignore`).
 - `docker compose down` na raiz afeta somente a aplicação e não para o PostgreSQL.
 - O volume do banco é administrado exclusivamente pela stack irmã em
-  `/home/claudio/Docker/database`.
+  `/home/claudio/Docker/database` no ambiente de homologação atual.

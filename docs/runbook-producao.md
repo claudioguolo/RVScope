@@ -110,54 +110,58 @@ o pod web deve apenas iniciar a aplicação e a migration deve ser uma etapa
 
 ## Premissas
 
-- O código é enviado ao Gitea, e o Gitea Actions gera a imagem.
-- A imagem é armazenada no Harbor com uma tag imutável igual aos 12 primeiros
-  caracteres do commit.
+- Gitea e Harbor são usados somente em homologação.
+- O checkout de homologação fica em `/dados/sistemas/rvscope-hom` e recebe a
+  imagem publicada pelo Gitea Actions no Harbor.
+- O checkout de produção fica em `/dados/sistemas/rvscope`, baixa o código do
+  GitHub pelo remoto `origin` e constrói a imagem localmente, pois o servidor
+  não acessa o Harbor.
 - O PostgreSQL tem ciclo de vida independente da aplicação.
 - A aplicação não monta o código-fonte por volume em produção.
 - `.env`, certificados, credenciais e CSVs não são armazenados no Git.
 - O diretório de CSVs é montado em `/app/arquivos_csv` somente para leitura.
-- A tag configurada em `RVSCOPE_IMAGE_TAG` deve ser exatamente a tag da imagem
-  executada.
-- Os comandos abaixo devem ser adaptados para os nomes DNS, diretórios e
-  registros do Harbor de produção.
+- O arquivo `docker-compose.production-local.yaml` é sempre combinado ao
+  `docker-compose.yaml` em produção para retirar a dependência do Harbor.
 
 ## 1. Preparação antes da mudança
 
 Registre:
 
 - commit aprovado;
-- tag imutável esperada;
-- tag atualmente em execução;
+- commit atualmente em execução;
 - responsável e janela da mudança;
 - localização e política de retenção do backup;
 - parâmetros de conexão do banco, fornecidos por arquivo protegido ou cofre;
 - espaço livre no servidor da aplicação e no banco.
 
-Confirme que o repositório está limpo e obtenha a tag:
+Confirme que o repositório de produção está limpo e obtenha os commits:
 
 ```bash
+cd /dados/sistemas/rvscope
 git status --short
-git fetch gitea
-NEW_TAG="$(git rev-parse --short=12 gitea/main)"
-printf '%s\n' "$NEW_TAG"
+git fetch origin main
+CURRENT_COMMIT="$(git rev-parse --short=12 HEAD)"
+NEW_COMMIT="$(git rev-parse --short=12 origin/main)"
+printf 'atual=%s novo=%s\n' "$CURRENT_COMMIT" "$NEW_COMMIT"
 ```
 
 O `git status --short` não deve apresentar alterações locais inesperadas.
 
-## 2. Validar o artefato no Harbor
+## 2. Validar homologação e origem
 
-Não use `latest`, `homolog` ou outra tag mutável para a promoção. Verifique a
-tag imutável publicada pelo pipeline:
+Antes da produção, valide o mesmo commit em homologação usando a tag imutável
+publicada no Harbor:
 
 ```bash
+NEW_TAG="$NEW_COMMIT"
 docker manifest inspect --insecure \
   "${HARBOR_REGISTRY}/rvscope/rvscope:${NEW_TAG}" >/dev/null &&
   echo "Imagem disponível no Harbor"
 ```
 
-Em produção com TLS válido, remova `--insecure`. Se o comando falhar, não
-continue: verifique o pipeline e o certificado do Harbor.
+Esse comando é executado no ambiente que alcança o Harbor, não no servidor de
+produção. Não promova um commit que não tenha passado pelos testes funcionais
+em homologação.
 
 ## 3. Backup do PostgreSQL
 
@@ -204,58 +208,48 @@ isolado.
 No servidor da aplicação:
 
 ```bash
-cd /caminho/de/producao/rvscope
-git pull --ff-only gitea main
+cd /dados/sistemas/rvscope
+git pull --ff-only origin main
 ```
 
 Confirme que o commit recebido corresponde ao artefato:
 
 ```bash
-test "$(git rev-parse --short=12 HEAD)" = "$NEW_TAG"
+test "$(git rev-parse --short=12 HEAD)" = "$NEW_COMMIT"
 ```
 
-## 5. Selecionar e implantar a imagem
-
-Atualize somente a chave `RVSCOPE_IMAGE_TAG` do `.env`:
-
-```bash
-if grep -q '^RVSCOPE_IMAGE_TAG=' .env; then
-  sed -i "s/^RVSCOPE_IMAGE_TAG=.*/RVSCOPE_IMAGE_TAG=$NEW_TAG/" .env
-else
-  printf '\nRVSCOPE_IMAGE_TAG=%s\n' "$NEW_TAG" >> .env
-fi
-```
+## 5. Construir e implantar a imagem local
 
 Valide a configuração efetiva antes de recriar o serviço:
 
 ```bash
-docker compose config --quiet
-docker compose config --images
+docker compose \
+  -f docker-compose.yaml \
+  -f docker-compose.production-local.yaml \
+  config --quiet
 ```
 
-O segundo comando deve mostrar exclusivamente a tag esperada para o serviço
-`app`. Faça o pull e recrie somente a aplicação:
+O serviço `app` deve mostrar `build`, `image: rvscope-app:production` e
+`pull_policy: never`. O caminho recomendado é o script idempotente:
 
 ```bash
-docker compose pull app
-docker compose up -d --force-recreate --no-build app
+./scripts/update-production-from-github.sh /dados/sistemas/rvscope
 ```
 
-Alternativamente, use o script de implantação, configurando o diretório e a
-URL de verificação para produção:
+Se o `git pull` já tiver sido executado, o script confirma que não existem
+alterações locais, mantém o repositório atualizado, constrói a imagem, recria
+somente a aplicação e valida container e migrations.
 
-```bash
-RVSCOPE_PROJECT_DIR=/caminho/de/producao/rvscope \
-RVSCOPE_HEALTH_URL=https://rvscope.exemplo/ \
-./scripts/deploy-homolog.sh "$NEW_TAG"
-```
+Não use `scripts/deploy-homolog.sh` em produção: ele depende de uma imagem do
+Harbor.
 
 ## 6. Verificações após a implantação
 
 Confirme container, imagem, ambiente e resposta HTTP:
 
 ```bash
-docker compose ps app
+COMPOSE="docker compose -f docker-compose.yaml -f docker-compose.production-local.yaml"
+$COMPOSE ps app
 docker inspect rvscope_app \
   --format 'Imagem={{.Config.Image}} ID={{.Image}}'
 docker inspect rvscope_app \
@@ -271,7 +265,7 @@ rótulo aprovado para o ambiente e use TLS válido no acesso externo.
 Confira os logs sem expor variáveis ou credenciais:
 
 ```bash
-docker compose logs --tail=150 app
+$COMPOSE logs --tail=150 app
 ```
 
 ## 7. Validar as migrations e o comando
@@ -280,14 +274,15 @@ O entrypoint executa migrations quando o banco está disponível. Confira o
 resultado:
 
 ```bash
-docker compose exec app php spark migrate:status
+$COMPOSE exec -T app php spark migrate:status
 ```
 
-A migration `ExpandRvtoolsInventorySnapshots` deve constar como aplicada.
+Todas as migrations devem constar como aplicadas, incluindo
+`CreateOperatingSystemPolicies` e `AddOperatingSystemOverrideToHostsInfo`.
 Confirme também que o comando foi empacotado na imagem:
 
 ```bash
-docker compose exec app php spark list |
+$COMPOSE exec -T app php spark list |
   grep rvscope:backfill-csv
 ```
 
@@ -391,6 +386,10 @@ Após o backfill:
 - abra listagens de hosts;
 - abra detalhes de hosts de datas diferentes;
 - valide filtros e exportações;
+- valide o Relatório Personalizado por gerência e por sistema operacional;
+- valide o gráfico histórico, seleção de SOs e intervalo de datas;
+- confira políticas de SO ignorado e um host com SO fixado;
+- confira cadastros ativos, inativos e excluídos de gerências e responsáveis;
 - confirme que uma data histórica não depende mais da presença do CSV;
 - valide login e permissões de Usuário, Editor e Administrador;
 - confira que configurações administrativas permanecem restritas;
@@ -436,20 +435,13 @@ consultam o inventário no PostgreSQL sob demanda.
 
 ## 13. Retorno e recuperação
 
-Antes da mudança, registre `PREVIOUS_TAG`:
+O script de atualização preserva a imagem que estava em execução com a tag
+`rvscope-app:rollback-COMMIT_ANTERIOR`. Para retornar somente a aplicação:
 
 ```bash
-PREVIOUS_TAG="$(
-  awk -F= '/^RVSCOPE_IMAGE_TAG=/{print $2; exit}' .env
-)"
-```
-
-Para retornar somente a aplicação:
-
-```bash
-sed -i "s/^RVSCOPE_IMAGE_TAG=.*/RVSCOPE_IMAGE_TAG=$PREVIOUS_TAG/" .env
-docker compose pull app
-docker compose up -d --force-recreate --no-build app
+docker image tag "rvscope-app:rollback-${CURRENT_COMMIT}" rvscope-app:production
+docker compose -f docker-compose.yaml -f docker-compose.production-local.yaml \
+  up -d --force-recreate --no-deps --no-build app
 ```
 
 Não reverta migrations automaticamente. Se houver corrupção ou necessidade de
@@ -459,7 +451,7 @@ instância de produção.
 
 ## Critérios de conclusão
 
-- tag imutável aprovada e confirmada no container;
+- commit aprovado e confirmado no container;
 - aplicação respondendo por HTTPS;
 - ambiente efetivo correto;
 - migrations aplicadas;

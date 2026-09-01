@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_NAME="$(basename "$0")"
-readonly PROJECT_DIR="${RVSCOPE_PROJECT_DIR:-/home/claudio/Docker/rvscope}"
+readonly PROJECT_DIR="${RVSCOPE_PROJECT_DIR:-/dados/sistemas/rvscope-hom}"
 readonly COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yaml"
 readonly ENV_FILE="${PROJECT_DIR}/.env"
 readonly SERVICE_NAME="app"
