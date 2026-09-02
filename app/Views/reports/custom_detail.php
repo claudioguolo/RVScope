@@ -123,7 +123,9 @@
                                     data-management-unit-active="<?= in_array($row['management_unit_is_active'] ?? false, [true, 1, '1', 't', 'true'], true) ? '1' : '0' ?>"
                                     data-technical-responsible-id="<?= (int) ($row['technical_responsible_id'] ?? 0) ?>"
                                     data-technical-responsible-active="<?= in_array($row['technical_responsible_is_active'] ?? false, [true, 1, '1', 't', 'true'], true) ? '1' : '0' ?>"
+                                    data-has-contract="<?= in_array($row['has_contract'] ?? false, [true, 1, '1', 't', 'true'], true) ? '1' : '0' ?>"
                                     data-contract="<?= esc((string) ($row['contract'] ?? ''), 'attr') ?>"
+                                    data-contract-valid-until="<?= esc((string) ($row['contract_valid_until'] ?? ''), 'attr') ?>"
                                     data-asset-risk-score="<?= esc((string) ($row['asset_risk_score'] ?? ''), 'attr') ?>"
                                     data-operating-system-override="<?= esc((string) ($row['operating_system_override'] ?? ''), 'attr') ?>"
                                     data-conv="<?= esc((string) ($row['conv'] ?? 'Nao informado'), 'attr') ?>"
@@ -165,8 +167,7 @@
                 <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits, 'operatingSystems' => $operatingSystems]) ?>
                 <?= view('reports/_inactive_assignment_warning') ?>
 
-                <label class="form-label mt-2" for="contract">Contrato</label>
-                <input id="contract" name="contract" type="text" class="form-control" maxlength="500">
+                <?= view('reports/_host_contract_fields') ?>
 
                 <label class="form-label mt-2" for="asset_risk_score">Asset risk score (ASTI)</label>
                 <input id="asset_risk_score" name="asset_risk_score" type="text" class="form-control" maxlength="160">
@@ -233,6 +234,7 @@ const technicalResponsiblesByManagementUnit = <?= json_encode(
 const managementUnitSelect = document.getElementById('management_unit_id');
 const technicalResponsibleSelect = document.getElementById('technical_responsible_id');
 <?= view('reports/_inactive_assignment_warning_script') ?>
+<?= view('reports/_host_contract_script') ?>
 
 function updateTechnicalResponsibleOptions(managementUnitId, selectedResponsibleId = '0') {
     const responsibles = technicalResponsiblesByManagementUnit[managementUnitId] || [];
@@ -273,7 +275,7 @@ if (infoModal) {
             availableManagementUnitId,
             availableManagementUnitId === '0' ? '0' : (button.getAttribute('data-technical-responsible-id') || '0')
         );
-        document.getElementById('contract').value = button.getAttribute('data-contract') || '';
+        loadContractFields(button);
         document.getElementById('asset_risk_score').value = button.getAttribute('data-asset-risk-score') || '';
         document.getElementById('operating_system_override').value = button.getAttribute('data-operating-system-override') || '';
         document.getElementById('conv').value = button.getAttribute('data-conv') || '';

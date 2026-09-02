@@ -135,7 +135,9 @@ class CustomReportController extends Controller
              COALESCE(info.conv, 'Nao informado') AS conv,
              COALESCE(info.creation_date, '') AS host_creation_date,
              COALESCE(info.os_last_update_date::text, '') AS os_last_update_date,
+             COALESCE(info.has_contract, FALSE) AS has_contract,
              COALESCE(info.contract, '') AS contract,
+             COALESCE(info.contract_valid_until::text, '') AS contract_valid_until,
              COALESCE(info.asset_risk_score, '') AS asset_risk_score"
         );
         $builder->join('hosts_info info', 'info.vm = inv.vm', 'left');

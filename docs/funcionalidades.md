@@ -55,6 +55,12 @@ política.
 - Os detalhes do host armazenam descrição, proprietário, flags de legado,
   appliance e migrável, gerência, responsável técnico, contrato, risco e SO
   fixado.
+- O checkbox **Existe Contrato** controla o campo **Contrato**. Quando marcado,
+  uma seção com a descrição obrigatória e a validade opcional do contrato é
+  expandida. Quando desmarcado, a seção permanece oculta e os dois campos são
+  inativados. O salvamento altera somente o indicador de existência entre os
+  dados contratuais; descrição e validade já armazenadas são preservadas para
+  casos de cancelamento ou desmarcação acidental.
 - Gerências e responsáveis técnicos são tabelas normalizadas e relacionadas ao
   host por identificador.
 - Ambos aceitam telefone opcional, edição, ativação, inativação e exclusão

@@ -757,11 +757,14 @@ class ReportController extends Controller
         if ($vm === '') {
             return ['success' => false, 'message' => 'Nome da VM vazio.'];
         }
+        $existing = $infoModel->find($vm);
 
         $desc = trim((string) ($this->request->getPost('desc') ?? ''));
         $managementUnitId = (int) ($this->request->getPost('management_unit_id') ?? 0);
         $technicalResponsibleId = (int) ($this->request->getPost('technical_responsible_id') ?? 0);
+        $hasContract = (bool) $this->request->getPost('has_contract');
         $contract = trim((string) ($this->request->getPost('contract') ?? ''));
+        $contractValidUntil = trim((string) ($this->request->getPost('contract_valid_until') ?? ''));
         $assetRiskScore = trim((string) ($this->request->getPost('asset_risk_score') ?? ''));
         $conv = trim((string) ($this->request->getPost('conv') ?? ''));
         $creationDate = trim((string) ($this->request->getPost('creation_date') ?? ''));
@@ -783,8 +786,22 @@ class ReportController extends Controller
         $desc = str_replace(';', ',', $desc);
         $conv = str_replace(';', ',', $conv);
 
-        if (mb_strlen($contract) > 500) {
+        if ($hasContract && $contract === '') {
+            return ['success' => false, 'message' => 'Preencha o campo Contrato quando Existe Contrato estiver marcado.'];
+        }
+        if ($hasContract && mb_strlen($contract) > 500) {
             return ['success' => false, 'message' => 'O campo Contrato deve ter no máximo 500 caracteres.'];
+        }
+        if ($hasContract && $contractValidUntil !== '') {
+            $dt = DateTime::createFromFormat('!Y-m-d', $contractValidUntil);
+            $dateErrors = DateTime::getLastErrors();
+            if ($dt === false
+                || ($dateErrors !== false
+                    && ($dateErrors['warning_count'] > 0 || $dateErrors['error_count'] > 0))
+                || $dt->format('Y-m-d') !== $contractValidUntil) {
+                return ['success' => false, 'message' => 'A validade do contrato é inválida.'];
+            }
+            $contractValidUntil = $dt->format('Y-m-d');
         }
         if (mb_strlen($assetRiskScore) > 160) {
             return ['success' => false, 'message' => 'O campo Asset risk score deve ter no máximo 160 caracteres.'];
@@ -857,7 +874,7 @@ class ReportController extends Controller
             'desc' => $desc,
             'management_unit_id' => $managementUnitId > 0 ? $managementUnitId : null,
             'technical_responsible_id' => $technicalResponsibleId > 0 ? $technicalResponsibleId : null,
-            'contract' => $contract,
+            'has_contract' => $hasContract,
             'asset_risk_score' => $assetRiskScore,
             'operating_system_override' => $operatingSystemOverride !== '' ? $operatingSystemOverride : null,
             'conv' => $conv,
@@ -870,8 +887,11 @@ class ReportController extends Controller
             'os_last_update_date' => $osLastUpdateDate !== '' ? $osLastUpdateDate : null,
             'updated_at' => date('Y-m-d H:i:s'),
         ];
+        if ($hasContract) {
+            $data['contract'] = $contract;
+            $data['contract_valid_until'] = $contractValidUntil !== '' ? $contractValidUntil : null;
+        }
 
-        $existing = $infoModel->find($vm);
         $previousOverride = trim((string) ($existing['operating_system_override'] ?? ''));
         $db = db_connect();
         $db->transBegin();
@@ -899,7 +919,8 @@ class ReportController extends Controller
             . 'management_units.is_active AS management_unit_is_active, '
             . 'hosts_info.technical_responsible_id, technical_responsibles.name AS owner, '
             . 'technical_responsibles.is_active AS technical_responsible_is_active, '
-            . 'hosts_info.contract, hosts_info.asset_risk_score, hosts_info.operating_system_override, '
+            . 'hosts_info.has_contract, hosts_info.contract, hosts_info.contract_valid_until, '
+            . 'hosts_info.asset_risk_score, hosts_info.operating_system_override, '
             . 'conv, leg, mig, migration_target, app, worker, '
             . 'creation_date, os_last_update_date'
         )
@@ -934,7 +955,9 @@ class ReportController extends Controller
                 'technical_responsible_is_active' => $this->catalogRecordIsActive(
                     $row['technical_responsible_is_active'] ?? false
                 ),
+                'has_contract' => $this->catalogRecordIsActive($row['has_contract'] ?? false),
                 'contract' => trim((string) ($row['contract'] ?? '')),
+                'contract_valid_until' => trim((string) ($row['contract_valid_until'] ?? '')),
                 'asset_risk_score' => trim((string) ($row['asset_risk_score'] ?? '')),
                 'operating_system_override' => trim((string) ($row['operating_system_override'] ?? '')),
                 'conv' => $row['conv'] ?? 'Nao informado',
@@ -1447,7 +1470,9 @@ class ReportController extends Controller
             'owner' => 'Sem registro',
             'technical_responsible_id' => 0,
             'technical_responsible_is_active' => true,
+            'has_contract' => false,
             'contract' => '',
+            'contract_valid_until' => '',
             'asset_risk_score' => '',
             'operating_system_override' => '',
             'conv' => 'Nao informado',
