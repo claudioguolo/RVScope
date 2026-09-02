@@ -104,6 +104,9 @@ mais recente disponíveis.
 
 ## Integridade e operação
 
+- O formulário de detalhes do host e seu comportamento JavaScript são
+  componentes compartilhados por todas as listagens, evitando implementações
+  divergentes entre os relatórios.
 - O esquema PostgreSQL é alterado somente pelas migrations versionadas.
 - Chaves estrangeiras protegem os relacionamentos normalizados.
 - O container executa migrations pendentes na inicialização; se o banco ainda
