@@ -167,8 +167,6 @@
                 <?= view('reports/_host_assignment_fields', ['managementUnits' => $managementUnits, 'operatingSystems' => $operatingSystems]) ?>
                 <?= view('reports/_inactive_assignment_warning') ?>
 
-                <?= view('reports/_host_contract_fields') ?>
-
                 <label class="form-label mt-2" for="asset_risk_score">Asset risk score (ASTI)</label>
                 <input id="asset_risk_score" name="asset_risk_score" type="text" class="form-control" maxlength="160">
 
@@ -188,7 +186,15 @@
                             <label class="form-check-label" for="appliance">Appliance</label>
                         </div>
                     </div>
+                    <div class="col">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="has_contract" name="has_contract" value="1">
+                            <label class="form-check-label" for="has_contract">Existe Contrato</label>
+                        </div>
+                    </div>
                 </div>
+
+                <?= view('reports/_host_contract_fields') ?>
 
                 <label class="form-label mt-3" for="migration_target">Migração</label>
                 <select id="migration_target" name="migration_target" class="form-select">

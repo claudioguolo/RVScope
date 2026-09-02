@@ -1,8 +1,3 @@
-<div class="form-check mt-3">
-    <input class="form-check-input" type="checkbox" id="has_contract" name="has_contract" value="1">
-    <label class="form-check-label" for="has_contract">Existe Contrato</label>
-</div>
-
 <div id="contract_details" class="collapse border rounded p-3 mt-2" aria-hidden="true">
     <label class="form-label" for="contract">Contrato</label>
     <input
