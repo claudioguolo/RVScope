@@ -377,3 +377,10 @@ assunto e texto em **Usuários e configurações → Configurar teste de e-mail*
 A conta de notificações permanece independente. O servidor/porta/segurança são
 compartilhados. O teste registra somente usuário e horário e exige 60 segundos
 entre tentativas. Consulte [a documentação funcional](docs/funcionalidades.md#teste-de-e-mail--versão-120).
+
+### Busca de VMs (v1.3.0)
+
+O menu **Buscar VM** procura parte do nome da VM, hostname/DNS ou IP primário,
+sem diferenciar maiúsculas/minúsculas. Por exemplo, `dsa` retorna tanto
+`dsa-vra-0001` quanto `vra-DSA-0002` e `dsateste-0001`. Permite selecionar a data
+do inventário (a mais recente por padrão), com resultados paginados de 50 VMs.

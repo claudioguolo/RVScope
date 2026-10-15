@@ -53,6 +53,7 @@ $routes->group('admin/operating-systems', ['filter' => 'role:admin'], static fun
     $routes->post('', 'OperatingSystemPolicyController::update', ['filter' => 'csrf']);
 });
 $routes->group('reports', ['filter' => 'authenticatedReports'], static function ($routes) {
+    $routes->get('buscar', 'VmSearchController::index');
     $routes->get('personalizado', 'CustomReportController::index');
     $routes->get('personalizado/detail', 'CustomReportController::detail');
     $routes->post('host-info', 'ReportController::saveHostInfo', ['filter' => 'csrf']);

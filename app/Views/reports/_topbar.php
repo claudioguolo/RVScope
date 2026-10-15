@@ -117,6 +117,7 @@ $breadcrumbs = $breadcrumbs ?? [
                    <?= $activeMenu === 'inicio' ? 'aria-current="page"' : '' ?>
                    href="<?= site_url('/') ?>">Início</a>
             </li>
+            <li class="nav-item"><a class="nav-link <?= $activeMenu === 'buscar' ? 'active' : '' ?>" href="<?= site_url('reports/buscar') ?>">Buscar VM</a></li>
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle <?= $activeMenu === 'relatorios' ? 'active' : '' ?>"
                    href="#"

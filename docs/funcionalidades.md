@@ -166,3 +166,23 @@ da tag efetiva da imagem, que continua sendo exibida quando configurada.
 
 A barra de debug não coleta as requisições de teste/configuração de e-mail,
 mesmo em desenvolvimento, para não persistir os campos do formulário.
+
+## Busca de VMs — versão 1.3.0
+
+O menu **Buscar VM** (`reports/buscar`) consulta nome da VM, hostname/DNS e IP
+primário importados do RVTools. A correspondência é parcial, em qualquer posição,
+e ignora maiúsculas/minúsculas: `dsa` encontra `dsa-vra-0001`, `vra-DSA-0002`
+e `dsateste-0001`. Um único termo pesquisa os três campos simultaneamente.
+Caracteres `%` e `_` são tratados literalmente, não como curingas SQL.
+
+A consulta usa por padrão a data mais recente disponível e permite escolher
+outro snapshot. Não mistura resultados de datas diferentes. Inclui todas as
+VMs importadas na data, inclusive sistemas fora dos agrupamentos dos relatórios.
+Retorna nome, hostname/DNS, IP primário, sistema operacional e estado de energia,
+com total de correspondências e paginação de 50 registros, preservando o termo
+e a data. Não consulta IPs adicionais que não estejam no campo IP primário.
+
+A busca é somente leitura e segue a configuração de autenticação dos relatórios,
+incluindo retorno à URL solicitada após login. Usa parâmetros vinculados e escape
+de HTML. Há mensagens para inventário vazio, termo inválido e nenhuma ocorrência.
+Não altera estrutura de banco nem exige migrations.

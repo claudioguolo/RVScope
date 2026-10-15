@@ -27,4 +27,20 @@ class RvtoolsVmInventoryModel extends Model
         'included_in_reports',
         'imported_at',
     ];
+    public function searchHosts(string $date, string $term, int $page = 1): array
+    {
+        $builder = $this->builder()->select('vm, dns_name, primary_ip, os_name, power_state')
+            ->where('reference_date', $date)
+            ->groupStart()
+            ->like('vm', $term, 'both', true, true)
+            ->orLike('dns_name', $term, 'both', true, true)
+            ->orLike('primary_ip', $term, 'both', true, true)
+            ->groupEnd();
+        $total = $builder->countAllResults(false);
+        $pages = max(1, (int) ceil($total / 50));
+        $page = max(1, min($page, $pages));
+        $rows = $builder->orderBy('vm', 'ASC')->orderBy('id', 'ASC')
+            ->limit(50, ($page - 1) * 50)->get()->getResultArray();
+        return compact('rows', 'total', 'page', 'pages');
+    }
 }
