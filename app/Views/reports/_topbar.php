@@ -35,7 +35,7 @@ $breadcrumbs = $breadcrumbs ?? [
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
             <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                <div class="app-title h4 mb-0">RVScope</div>
+                <div class="app-title h4 mb-0">RVScope <span class="small text-white-50">v<?= esc(\Config\RVScopeVersion::VERSION) ?></span></div>
                 <?php if ($environmentLabel !== null || $imageTag !== ''): ?>
                     <div class="app-environment-badges">
                         <?php if ($environmentLabel !== null): ?>
@@ -152,6 +152,9 @@ $breadcrumbs = $breadcrumbs ?? [
                    <?= $activeMenu === 'graficos' ? 'aria-current="page"' : '' ?>
                    href="<?= site_url('graficos') ?>">Gráficos</a>
             </li>
+            <?php if ($isAuthenticated): ?>
+                <li class="nav-item"><a class="nav-link <?= $activeMenu === 'email-test' ? 'active' : '' ?>" href="<?= site_url('tools/email-test') ?>">Teste de e-mail</a></li>
+            <?php endif; ?>
         </ul>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb mb-0">

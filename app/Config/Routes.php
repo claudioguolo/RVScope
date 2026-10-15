@@ -70,6 +70,14 @@ $routes->group('reports', ['filter' => 'authenticatedReports'], static function 
     $routes->get('detail', 'ReportController::detail');
     $routes->post('detail', 'ReportController::detail', ['filter' => 'csrf']);
 });
+$routes->group('tools/email-test', ['filter' => 'role:user,editor,admin'], static function ($routes) {
+    $routes->get('', 'EmailTestController::index');
+    $routes->post('', 'EmailTestController::send', ['filter' => 'csrf']);
+});
+$routes->group('admin/email-test', ['filter' => 'role:admin'], static function ($routes) {
+    $routes->get('', 'EmailTestController::settings');
+    $routes->post('', 'EmailTestController::saveSettings', ['filter' => 'csrf']);
+});
 $routes->get('graficos', 'ChartController::index', ['filter' => 'authenticatedReports']);
 $routes->group('import', ['filter' => 'role:editor,admin'], static function ($routes) {
     $routes->get('', 'ImportController::form');

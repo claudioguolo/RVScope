@@ -113,3 +113,42 @@ mais recente disponíveis.
   estiver indisponível, inicia em modo degradado e registra o problema.
 - O pipeline valida Composer, executa testes e lint, valida o Compose, constrói
   a imagem e executa o scanner Trivy antes da publicação no Harbor.
+
+## Teste de e-mail — versão 1.1.0
+
+O menu **Teste de e-mail** (`tools/email-test`) está disponível para usuários
+ativos autenticados, locais ou AD, dos papéis Usuário, Editor e Administrador,
+mesmo quando a consulta de relatórios é pública. Esta é uma autorização específica
+para executar o diagnóstico, sem conceder edição de hosts ou configurações.
+
+O formulário envia somente o assunto e o corpo em texto simples definidos pelo
+administrador. Usa o servidor, porta, segurança e conta SMTP já cadastrados.
+Opcionalmente aceita uma conta alternativa (e-mail e senha, usando o e-mail
+como remetente) e destinatários extras. Esses campos não são persistidos nem
+repopulados após o envio. O limite é de 20 destinatários únicos por envio,
+incluindo os padrão, e uma tentativa por usuário a cada 60 segundos.
+
+Somente administradores acessam **Configurar teste de e-mail**
+(`admin/email-test`), também disponível em **Usuários e configurações**.
+Ali cadastram destinatários padrão, assunto e corpo. O texto inicial adapta o
+script anterior para identificar o RVScope, sem dados pessoais ou credenciais.
+As configurações usam a tabela existente `app_settings`; não há alteração de
+estrutura nem migration necessária. Nenhuma credencial do script foi incorporada.
+
+O registro de uso fica em `writable/logs/email-test-usage.log`, com ID do usuário
+e data/hora UTC da tentativa, inclusive quando o envio falha. Não registra conta
+alternativa, senha, destinatários, assunto, corpo ou transcript SMTP. O arquivo
+precisa ser gravável: se não for possível registrar o uso, o envio é bloqueado.
+O mesmo log aplica o intervalo entre tentativas, inclusive entre sessões, em uma
+instância com diretório writable compartilhado. Instâncias com writable separados
+precisam de armazenamento compartilhado para aplicar esse limite em conjunto.
+
+Os POSTs usam CSRF e rotas protegidas por papel. SMTP desabilitado impede envio.
+A aceitação pelo servidor não comprova entrega na caixa de entrada; a interface
+explicita essa diferença. Não há envio automático nem testes contra o servidor
+real durante a validação do código. O transporte da aplicação evita registrar
+transcripts SMTP em falhas. A versão funcional aparece no cabeçalho, independente
+da tag efetiva da imagem, que continua sendo exibida quando configurada.
+
+A barra de debug não coleta as requisições de teste/configuração de e-mail,
+mesmo em desenvolvimento, para não persistir os campos do formulário.

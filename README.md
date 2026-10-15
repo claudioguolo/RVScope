@@ -365,3 +365,12 @@ docker compose down
 - `docker compose down` na raiz afeta somente a aplicação e não para o PostgreSQL.
 - O volume do banco é administrado exclusivamente pela stack irmã em
   `/home/claudio/Docker/database` no ambiente de homologação atual.
+
+### Teste de e-mail (v1.1.0)
+
+Usuários autenticados podem acessar **Teste de e-mail** para enviar uma mensagem
+padrão pelo SMTP configurado, com conta alternativa e destinatários extras
+opcionais, usados somente naquele envio. Administradores definem destinatários,
+assunto e texto em **Usuários e configurações → Configurar teste de e-mail**.
+O teste registra somente usuário e horário e exige 60 segundos entre tentativas.
+Consulte [a documentação funcional](docs/funcionalidades.md#teste-de-e-mail--versão-110).

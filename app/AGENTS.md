@@ -54,7 +54,9 @@ Estas regras complementam o `AGENTS.md` da raiz para arquivos em `app/`.
 - Não exibir a senha armazenada novamente na interface.
 - Campo de senha vazio deve preservar a credencial existente.
 - Não alterar silenciosamente a chave de criptografia.
-- Envios de teste só devem ocorrer por ação explícita de administrador.
+- O teste de e-mail pode ser executado por ação explícita de qualquer usuário
+  autenticado. Somente administradores configuram SMTP, destinatários padrão,
+  assunto e mensagem. Credenciais alternativas e destinatários extras são temporários.
 - Logs de SMTP não devem incluir senha ou conteúdo sensível da mensagem.
 
 ## Views e erros
