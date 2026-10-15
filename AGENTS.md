@@ -68,6 +68,9 @@ escopo.
 - Novas configurações operacionais devem ficar na área administrativa e
   possuir mensagens claras de sucesso e erro.
 - Preserve e não altere ou suprima, itens visuais, funções, recursos e posição de layout sem que seja solicitado. 
+- Nas listagens no formato tabela onde são exibidas relações de hosts, sempre coloque um botão para exibir detalhes daquele host, a menos que seja explicitamente solicitado o supressão deste botão.
+- Em todas as listagens, inclusive busca, obedeça a relação de vm´s apresentadas na pagina principal, ou seja, somente maquinas ligadas e somente nos sistemas operacionais selecionados na configuração do sistema.
+
 
 ## Verificações obrigatórias
 
@@ -83,6 +86,13 @@ Antes de declarar uma alteração concluída:
    externos ainda não configurados.
 8. Remova containers e redes criados exclusivamente para validação.
 
+
+## Documentação
+
+- Toda funcionalidade do sistema deve ser documentada
+- Após todo ajuste e alteração de código deve se verificar a documentação está de acordo, caso preciso faça atualização das documentações.
+
+
 ## Git e publicação
 
 - Preserve alterações existentes do usuário e não reverta trabalho não
@@ -95,3 +105,4 @@ Antes de declarar uma alteração concluída:
   Harbor com uma tag imutável baseada no commit.
 - Na homologação, confirme a imagem e as variáveis efetivas após recriar o
   container.
+- Use sistema de versionamento da aplicação, a cada alteração no código implemente a versão de forma a manter o controle. A versão deve sempre ser exibida na interface em local adequado que não atrapalhe a usabilidade.
