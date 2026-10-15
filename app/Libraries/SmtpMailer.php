@@ -7,6 +7,18 @@ use RuntimeException;
 
 class SmtpMailer
 {
+    public function sendTest(array $recipients, array $configuration, ?array $alternative): void
+    {
+        if ($configuration['username'] === '' || $configuration['password_encrypted'] === '') {
+            throw new RuntimeException('Cadastre a conta exclusiva de testes na administração.');
+        }
+        $account = $alternative ?? [
+            'username' => $configuration['username'],
+            'password' => (new SettingsSecretProtector())->decrypt($configuration['password_encrypted']),
+        ];
+        $this->send($recipients, $configuration['subject'], $configuration['body'], $account, true);
+    }
+
     public function send(string|array $recipient, string $subject, string $message, ?array $temporaryAccount = null, bool $plainText = false): void
     {
         $settings = (new AppSettingModel())->smtpConfiguration();

@@ -107,6 +107,8 @@ class AppSettingModel extends Model
     public function emailTestConfiguration(): array
     {
         return [
+            'username' => $this->value('email_test_username'),
+            'password_encrypted' => $this->value('email_test_password_encrypted'),
             'recipients' => $this->value('email_test_recipients'),
             'subject' => $this->value('email_test_subject', '[TESTE DE ENVIO] - RVScope'),
             'body' => $this->value('email_test_body', "Este é um e-mail automático de teste, enviado por meio do RVScope.\n\nEsta mensagem tem como único objetivo validar o funcionamento do sistema de envio de e-mails e não requer nenhuma ação por parte do destinatário.\n\nCaso você tenha recebido esta mensagem por engano, pedimos a gentileza de desconsiderá-la.\n\nAtenção: esta é uma conta de envio automático e não recebe respostas. Mensagens encaminhadas para este endereço não serão lidas nem processadas."),
@@ -116,8 +118,11 @@ class AppSettingModel extends Model
     public function setEmailTestConfiguration(array $configuration): void
     {
         $this->db->transStart();
-        foreach (['recipients', 'subject', 'body'] as $field) {
+        foreach (['username', 'recipients', 'subject', 'body'] as $field) {
             $this->setValue('email_test_' . $field, $configuration[$field]);
+        }
+        if ($configuration['password_encrypted'] !== '') {
+            $this->setValue('email_test_password_encrypted', $configuration['password_encrypted']);
         }
         $this->db->transComplete();
         if (! $this->db->transStatus()) {

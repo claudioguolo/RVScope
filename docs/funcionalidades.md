@@ -114,7 +114,7 @@ mais recente disponíveis.
 - O pipeline valida Composer, executa testes e lint, valida o Compose, constrói
   a imagem e executa o scanner Trivy antes da publicação no Harbor.
 
-## Teste de e-mail — versão 1.1.0
+## Teste de e-mail — versão 1.2.0
 
 O menu **Teste de e-mail** (`tools/email-test`) está disponível para usuários
 ativos autenticados, locais ou AD, dos papéis Usuário, Editor e Administrador,
@@ -122,15 +122,29 @@ mesmo quando a consulta de relatórios é pública. Esta é uma autorização es
 para executar o diagnóstico, sem conceder edição de hosts ou configurações.
 
 O formulário envia somente o assunto e o corpo em texto simples definidos pelo
-administrador. Usa o servidor, porta, segurança e conta SMTP já cadastrados.
-Opcionalmente aceita uma conta alternativa (e-mail e senha, usando o e-mail
-como remetente) e destinatários extras. Esses campos não são persistidos nem
-repopulados após o envio. O limite é de 20 destinatários únicos por envio,
-incluindo os padrão, e uma tentativa por usuário a cada 60 segundos.
+administrador. Usa o servidor, porta e segurança SMTP já cadastrados, mas possui uma conta
+exclusiva de testes, independente da conta de notificações. O teste rápido vem
+selecionado e habilita somente o botão **Teste Rápido**. Ignora quaisquer campos
+alternativos enviados diretamente ao backend.
+
+Ao selecionar o outro rádio, o botão rápido é desabilitado e são habilitados
+conta, senha, destinatário personalizado e botão **Teste Personalizado**.
+O usuário informa somente o nome da conta: o sufixo `@envio.tjmt.jus.br` é fixo
+e validado também no backend. A conta completa é usada como SMTP USER e FROM.
+A senha é obrigatória no modo personalizado. O destino opcional substitui os
+destinatários padrão; vazio usa os padrão. Aceita até 20 endereços únicos.
+Os dados temporários não são persistidos nem repopulados após o envio.
+O intervalo entre tentativas é de 60 segundos por usuário.
 
 Somente administradores acessam **Configurar teste de e-mail**
 (`admin/email-test`), também disponível em **Usuários e configurações**.
-Ali cadastram destinatários padrão, assunto e corpo. O texto inicial adapta o
+Ali cadastram o usuário e a senha exclusivos dos testes, destinatários padrão,
+assunto e corpo. A senha usa AES-256-GCM e a chave externa
+`security.settingsEncryptionKey`, sem reutilizar a senha de notificações.
+Senha vazia preserva a existente; trocar a conta exige informar a nova senha.
+Cadastros anteriores precisam receber a conta exclusiva antes do primeiro envio;
+não há cópia automática de credenciais. O domínio da conta cadastrada também é
+restrito a `@envio.tjmt.jus.br`. O texto inicial adapta o
 script anterior para identificar o RVScope, sem dados pessoais ou credenciais.
 As configurações usam a tabela existente `app_settings`; não há alteração de
 estrutura nem migration necessária. Nenhuma credencial do script foi incorporada.
