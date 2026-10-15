@@ -176,8 +176,11 @@ e `dsateste-0001`. Um único termo pesquisa os três campos simultaneamente.
 Caracteres `%` e `_` são tratados literalmente, não como curingas SQL.
 
 A consulta usa por padrão a data mais recente disponível e permite escolher
-outro snapshot. Não mistura resultados de datas diferentes. Inclui todas as
-VMs importadas na data, inclusive sistemas fora dos agrupamentos dos relatórios.
+outro snapshot. Não mistura resultados de datas diferentes. A partir da versão
+1.3.2, lista somente VMs ligadas (`poweredOn`) e incluídas nos relatórios
+(`included_in_reports = TRUE`), respeitando a seleção de sistemas operacionais
+da administração, como a página principal. Esses critérios também se aplicam
+ao total e à paginação, em buscas por nome, hostname ou IP.
 Retorna nome, hostname/DNS, IP primário, sistema operacional e estado de energia,
 com total de correspondências e paginação de 50 registros, preservando o termo
 e a data. Não consulta IPs adicionais que não estejam no campo IP primário.

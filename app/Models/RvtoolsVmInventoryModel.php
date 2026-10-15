@@ -31,6 +31,8 @@ class RvtoolsVmInventoryModel extends Model
     {
         $builder = $this->builder()->select('vm, dns_name, primary_ip, os_name, os_name_raw, creation_date_raw, annotation, power_state')
             ->where('reference_date', $date)
+            ->where('included_in_reports', true)
+            ->where('power_state', 'poweredOn')
             ->groupStart()
             ->like('vm', $term, 'both', true, true)
             ->orLike('dns_name', $term, 'both', true, true)

@@ -389,3 +389,7 @@ Na versão **1.3.1**, os resultados da busca também oferecem **Detalhes / Edita
 conforme o papel do usuário, preservando os filtros ao salvar. Na janela comum
 às listagens, os campos do CSV ficam desabilitados; os dados complementares
 continuam editáveis apenas por Editor/Administrador.
+
+Na versão **1.3.2**, a busca respeita os critérios da página principal: somente
+VMs ligadas e incluídas nos relatórios conforme as configurações de sistemas
+operacionais. O total e a paginação consideram apenas essas VMs.
