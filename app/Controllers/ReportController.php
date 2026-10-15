@@ -36,7 +36,8 @@ class ReportController extends Controller
     {
         $result = $this->handleSave(new HostInfoModel());
         $returnTo = trim((string) ($this->request->getPost('return_to') ?? ''));
-        if (! str_starts_with($returnTo, 'reports/personalizado/detail?')) {
+        if (! str_starts_with($returnTo, 'reports/personalizado/detail?')
+            && ! str_starts_with($returnTo, 'reports/buscar?')) {
             $returnTo = 'reports/personalizado';
         }
 
@@ -1040,6 +1041,8 @@ class ReportController extends Controller
                     (string) ($inventoryRow['creation_date_raw'] ?? ''),
                     $infoMap,
                 ),
+                'csv_os' => (string) (($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')),
+                'csv_creation' => (string) ($inventoryRow['creation_date_raw'] ?? ''),
                 'annotation' => (string) ($inventoryRow['annotation'] ?? ''),
                 'info' => $info,
             ];
@@ -1106,6 +1109,8 @@ class ReportController extends Controller
                     (string) ($inventoryRow['creation_date_raw'] ?? ''),
                     $infoMap,
                 ),
+                'csv_os' => (string) (($inventoryRow['os_name_raw'] ?? '') ?: ($inventoryRow['os_name'] ?? '')),
+                'csv_creation' => (string) ($inventoryRow['creation_date_raw'] ?? ''),
                 'annotation' => (string) ($inventoryRow['annotation'] ?? ''),
                 'info' => $info,
                 'is_removed' => true,
@@ -1286,6 +1291,8 @@ class ReportController extends Controller
                 'dns' => $dns,
                 'ip' => $ip,
                 'os' => $effectiveOs,
+                'csv_os' => $osValue,
+                'csv_creation' => $creationRaw,
                 'creation' => $creation,
                 'annotation' => $annotation,
                 'info' => $info,

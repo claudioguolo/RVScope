@@ -31,6 +31,9 @@ class VmSearchController extends Controller
                 $result = $inventory->searchHosts($date, $term, $page);
             }
         }
-        return view('reports/search', compact('dates', 'date', 'term', 'submitted', 'error', 'result'));
+        $details = new \App\Libraries\HostDetailData();
+        $result['rows'] = $details->enrich($result['rows']);
+        return view('reports/search', compact('dates', 'date', 'term', 'submitted', 'error', 'result')
+            + $details->catalogs() + ['alert' => session()->getFlashdata('hostInfoAlert')]);
     }
 }

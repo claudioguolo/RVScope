@@ -3,9 +3,6 @@
 namespace App\Controllers;
 
 use App\Libraries\CustomReportCriteria;
-use App\Models\ManagementUnitModel;
-use App\Models\ManagementUnitTechnicalResponsibleModel;
-use App\Models\TechnicalResponsibleModel;
 use CodeIgniter\Controller;
 
 class CustomReportController extends Controller
@@ -117,7 +114,7 @@ class CustomReportController extends Controller
     {
         $builder = db_connect()->table('rvtools_vm_inventory inv');
         $builder->select(
-            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.annotation,
+            "inv.vm, inv.dns_name, inv.primary_ip, inv.os_name, inv.os_name_raw, inv.creation_date_raw, inv.annotation,
              COALESCE(NULLIF(TRIM(info.operating_system_override), ''), NULLIF(TRIM(inv.os_name_raw), ''), inv.os_name) AS os_name_display,
              COALESCE(NULLIF(TRIM(mu.name), ''), 'Sem registro') AS gerencia,
              COALESCE(info.desc, 'Sem registro') AS description,
@@ -294,48 +291,6 @@ class CustomReportController extends Controller
 
     private function hostCatalogViewData(): array
     {
-        $managementUnits = (new ManagementUnitModel())
-            ->where('is_deleted', false)
-            ->where('is_active', true)
-            ->orderBy('name', 'ASC')
-            ->findAll();
-        $activeResponsibles = (new TechnicalResponsibleModel())
-            ->where('is_active', true)
-            ->orderBy('name', 'ASC')
-            ->findAll();
-        $responsiblesById = [];
-        foreach ($activeResponsibles as $responsible) {
-            $id = (int) ($responsible['id'] ?? 0);
-            if ($id > 0) {
-                $responsiblesById[$id] = ['id' => $id, 'name' => (string) ($responsible['name'] ?? '')];
-            }
-        }
-
-        $byManagementUnit = [];
-        foreach ((new ManagementUnitTechnicalResponsibleModel())->findAll() as $relationship) {
-            $managementId = (int) ($relationship['management_unit_id'] ?? 0);
-            $responsibleId = (int) ($relationship['technical_responsible_id'] ?? 0);
-            if ($managementId > 0 && isset($responsiblesById[$responsibleId])) {
-                $byManagementUnit[$managementId][] = $responsiblesById[$responsibleId];
-            }
-        }
-        foreach ($byManagementUnit as &$responsibles) {
-            usort($responsibles, static fn (array $left, array $right): int => strcasecmp(
-                (string) ($left['name'] ?? ''),
-                (string) ($right['name'] ?? '')
-            ));
-        }
-        unset($responsibles);
-
-        $operatingSystems = db_connect()->table('operating_system_policies')
-            ->select('os_name')
-            ->orderBy('LOWER(os_name)', 'ASC', false)
-            ->get()->getResultArray();
-
-        return [
-            'managementUnits' => $managementUnits,
-            'technicalResponsiblesByManagementUnit' => $byManagementUnit,
-            'operatingSystems' => array_column($operatingSystems, 'os_name'),
-        ];
+        return (new \App\Libraries\HostDetailData())->catalogs();
     }
 }

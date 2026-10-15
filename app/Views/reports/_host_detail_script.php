@@ -42,6 +42,10 @@ if (infoModal) {
             return;
         }
         document.getElementById('vm').value = button.getAttribute('data-vm') || '';
+        document.getElementById('vm_identifier').value = button.getAttribute('data-vm') || '';
+        ['dns', 'ip', 'csv_os', 'csv_creation'].forEach((id) => {
+            document.getElementById(id).value = button.getAttribute('data-' + id.replaceAll('_', '-')) || '';
+        });
         document.getElementById('desc').value = button.getAttribute('data-desc') || '';
         updateInactiveAssignmentWarning(button);
         const managementUnitId = button.getAttribute('data-management-unit-id') || '0';

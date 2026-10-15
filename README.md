@@ -384,3 +384,8 @@ O menu **Buscar VM** procura parte do nome da VM, hostname/DNS ou IP primário,
 sem diferenciar maiúsculas/minúsculas. Por exemplo, `dsa` retorna tanto
 `dsa-vra-0001` quanto `vra-DSA-0002` e `dsateste-0001`. Permite selecionar a data
 do inventário (a mais recente por padrão), com resultados paginados de 50 VMs.
+
+Na versão **1.3.1**, os resultados da busca também oferecem **Detalhes / Editar**,
+conforme o papel do usuário, preservando os filtros ao salvar. Na janela comum
+às listagens, os campos do CSV ficam desabilitados; os dados complementares
+continuam editáveis apenas por Editor/Administrador.

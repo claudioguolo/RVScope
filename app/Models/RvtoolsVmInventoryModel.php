@@ -29,7 +29,7 @@ class RvtoolsVmInventoryModel extends Model
     ];
     public function searchHosts(string $date, string $term, int $page = 1): array
     {
-        $builder = $this->builder()->select('vm, dns_name, primary_ip, os_name, power_state')
+        $builder = $this->builder()->select('vm, dns_name, primary_ip, os_name, os_name_raw, creation_date_raw, annotation, power_state')
             ->where('reference_date', $date)
             ->groupStart()
             ->like('vm', $term, 'both', true, true)

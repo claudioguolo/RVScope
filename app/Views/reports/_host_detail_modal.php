@@ -18,7 +18,12 @@ $assetRiskPlaceholder = (string) ($assetRiskPlaceholder ?? 'Classificação ou f
                 <?php endforeach; ?>
 
                 <label class="form-label" for="vm">Name VMWare</label>
-                <input id="vm" name="vm" class="form-control" readonly>
+                <input id="vm" class="form-control" disabled>
+                <input id="vm_identifier" name="vm" type="hidden">
+                <?php foreach (['dns' => 'Hostname / DNS (CSV)', 'ip' => 'IP (CSV)', 'csv_os' => 'Sistema operacional detectado (CSV)', 'csv_creation' => 'Criação (CSV)'] as $id => $label): ?>
+                    <label class="form-label mt-2" for="<?= esc($id, 'attr') ?>"><?= esc($label) ?></label>
+                    <input id="<?= esc($id, 'attr') ?>" class="form-control" disabled>
+                <?php endforeach; ?>
 
                 <label class="form-label mt-2" for="desc">Descrição</label>
                 <textarea id="desc" name="desc" class="form-control" rows="3"></textarea>
@@ -72,14 +77,14 @@ $assetRiskPlaceholder = (string) ($assetRiskPlaceholder ?? 'Classificação ou f
                     <option value="rancher">Rancher</option>
                 </select>
 
-                <label class="form-label mt-3" for="creation_date">Criação (dd/mm/aaaa)</label>
+                <label class="form-label mt-3" for="creation_date">Criação — registro complementar (dd/mm/aaaa)</label>
                 <input id="creation_date" name="creation_date" class="form-control" maxlength="10" placeholder="dd/mm/aaaa">
 
                 <label class="form-label mt-3" for="os_last_update_date">Última atualização do SO</label>
                 <input id="os_last_update_date" name="os_last_update_date" type="date" class="form-control">
 
                 <label class="form-label mt-3" for="annotation">VCenter Notes</label>
-                <textarea id="annotation" class="form-control" rows="3" readonly></textarea>
+                <textarea id="annotation" class="form-control" rows="3" disabled></textarea>
             </div>
 
             <div class="modal-footer">

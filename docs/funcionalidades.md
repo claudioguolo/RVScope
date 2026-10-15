@@ -186,3 +186,21 @@ A busca é somente leitura e segue a configuração de autenticação dos relat�
 incluindo retorno à URL solicitada após login. Usa parâmetros vinculados e escape
 de HTML. Há mensagens para inventário vazio, termo inválido e nenhuma ocorrência.
 Não altera estrutura de banco nem exige migrations.
+
+### Detalhes na busca e campos importados — versão 1.3.1
+
+Cada resultado de **Buscar VM** possui o botão **Detalhes** para consulta e
+**Detalhes / Editar** para Editor/Administrador, com a mesma janela das outras
+listagens. Os dados complementares são os atuais do cadastro da VM; os dados
+importados correspondem ao snapshot selecionado. Ao salvar, a aplicação retorna
+à busca preservando termo, data e página, mostrando o resultado da operação.
+A gravação usa o endpoint existente, CSRF e a autorização por papel no backend.
+
+Em todas as listagens que usam essa janela, nome da VM, hostname/DNS, IP, SO
+detectado, criação do CSV e VCenter Notes aparecem em campos desabilitados,
+sem possibilidade de edição ou envio desses valores como alterações. O nome da
+VM é enviado separadamente como identificador oculto, sem alterar o inventário.
+A criação importada fica separada de **Criação — registro complementar**, que
+continua editável por Editor/Administrador, assim como os demais dados
+complementares. Usuário comum permanece sem botão Salvar e com campos
+complementares desabilitados. A alteração não exige migrations.
