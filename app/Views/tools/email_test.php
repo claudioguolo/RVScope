@@ -15,6 +15,9 @@
     ]]) ?>
     <div class="app-card p-4 mb-4">
         <h1 class="h4"><?= $administrative ? 'Configurar teste de e-mail' : 'Teste de e-mail' ?></h1>
+        <?php if ($domainError !== null): ?>
+            <div class="alert alert-danger" role="alert"><?= esc($domainError) ?></div>
+        <?php endif; ?>
         <?php if ($error = session()->getFlashdata('email_test_error')): ?>
             <div class="alert alert-danger" role="alert"><?= esc($error) ?></div>
         <?php endif; ?>
@@ -22,12 +25,28 @@
             <div class="alert alert-success" role="status"><?= esc($success) ?></div>
         <?php endif; ?>
         <?php if ($administrative): ?>
-            <p>O teste usa o servidor cadastrado em Usuários e configurações. A conta abaixo é exclusiva para os testes e não altera a conta de notificações. Somente administradores podem editar este cadastro.</p>
+            <p>O teste usa o servidor cadastrado em Usuários e configurações. A conta, a porta e a segurança abaixo são exclusivas dos testes. Somente administradores podem editar este cadastro.</p>
             <form method="post" action="<?= site_url('admin/email-test') ?>" class="row g-3">
                 <?= csrf_field() ?>
                 <div class="col-md-6">
+                    <label for="test_smtp_port" class="form-label">Porta SMTP dos testes</label>
+                    <input id="test_smtp_port" name="test_smtp_port" type="number" min="1" max="65535" class="form-control" required value="<?= esc((string) $configuration['port'], 'attr') ?>">
+                </div>
+                <div class="col-md-6">
+                    <label for="test_smtp_crypto" class="form-label">Segurança SMTP dos testes</label>
+                    <select id="test_smtp_crypto" name="test_smtp_crypto" class="form-select">
+                        <option value="tls" <?= $configuration['crypto'] === 'tls' ? 'selected' : '' ?>>STARTTLS — criptografado (usual na porta 587)</option>
+                        <option value="ssl" <?= $configuration['crypto'] === 'ssl' ? 'selected' : '' ?>>SSL/TLS — criptografado (usual na porta 465)</option>
+                        <option value="none" <?= $configuration['crypto'] === '' ? 'selected' : '' ?>>Nenhuma — sem criptografia</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button id="test-smtp-starttls" class="btn btn-outline-secondary" type="button">Usar 587 com STARTTLS</button>
+                    <div class="form-text">Preenche porta 587 e STARTTLS. Clique em Salvar configuração para aplicar. O servidor deve oferecer STARTTLS e apresentar certificado TLS válido.</div>
+                </div>
+                <div class="col-md-6">
                     <label for="test_username" class="form-label">Conta exclusiva de testes</label>
-                    <div class="input-group"><input id="test_username" name="test_username" class="form-control" maxlength="236" autocomplete="off" required value="<?= esc(explode('@', $configuration['username'])[0], 'attr') ?>"><span class="input-group-text">@envio.tjmt.jus.br</span></div>
+                    <div class="input-group"><input id="test_username" name="test_username" class="form-control" maxlength="64" autocomplete="off" required value="<?= esc(explode('@', $configuration['username'])[0], 'attr') ?>"><span class="input-group-text">@<?= esc($domain) ?></span></div>
                 </div>
                 <div class="col-md-6">
                     <label for="test_password" class="form-label">Senha da conta de testes</label>
@@ -53,7 +72,7 @@
                 </div>
                 <fieldset id="custom-fields" class="col-12" disabled>
                     <div class="row g-3">
-                        <div class="col-md-6"><label for="username" class="form-label">Conta alternativa</label><div class="input-group"><input id="username" name="username" maxlength="236" autocomplete="off" class="form-control" required><span class="input-group-text">@envio.tjmt.jus.br</span></div><div class="form-text">Informe somente o nome da conta. Ela será usada para autenticação e como remetente.</div></div>
+                        <div class="col-md-6"><label for="username" class="form-label">Conta alternativa</label><div class="input-group"><input id="username" name="username" maxlength="64" autocomplete="off" class="form-control" required><span class="input-group-text">@<?= esc($domain) ?></span></div><div class="form-text">Informe somente o nome da conta. Ela será usada para autenticação e como remetente.</div></div>
                         <div class="col-md-6"><label for="password" class="form-label">Senha da conta alternativa</label><input id="password" name="password" type="password" maxlength="4096" autocomplete="new-password" class="form-control" required></div>
                         <div class="col-12"><label for="custom_recipients" class="form-label">Destinatário personalizado (opcional)</label><textarea id="custom_recipients" name="custom_recipients" maxlength="6000" class="form-control"></textarea><div class="form-text">Deixe vazio para usar os destinatários padrão. Se preenchido, o envio será feito somente para os endereços informados. Até 20 endereços, separados por vírgula, ponto e vírgula ou linha.</div></div>
                     </div>
@@ -72,6 +91,13 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (() => {
+    const starttls = document.getElementById('test-smtp-starttls');
+    if (starttls) {
+        starttls.addEventListener('click', () => {
+            document.getElementById('test_smtp_port').value = '587';
+            document.getElementById('test_smtp_crypto').value = 'tls';
+        });
+    }
     const form = document.getElementById('email-test-form');
     if (!form) return;
     const custom = document.getElementById('mode-custom');

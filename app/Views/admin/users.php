@@ -233,10 +233,11 @@
                 <label for="smtp_crypto" class="form-label fw-semibold">Segurança</label>
                 <?php $smtpCrypto = (string) ($smtpConfiguration['crypto'] ?? 'tls'); ?>
                 <select id="smtp_crypto" name="smtp_crypto" class="form-select">
-                    <option value="tls" <?= $smtpCrypto === 'tls' ? 'selected' : '' ?>>STARTTLS</option>
+                    <option value="tls" <?= $smtpCrypto === 'tls' ? 'selected' : '' ?>>STARTTLS (criptografado)</option>
                     <option value="ssl" <?= $smtpCrypto === 'ssl' ? 'selected' : '' ?>>SSL/TLS</option>
                     <option value="none" <?= $smtpCrypto === '' ? 'selected' : '' ?>>Nenhuma</option>
                 </select>
+                <div class="form-text">Para porta 587 com criptografia, use STARTTLS.</div>
             </div>
 
             <div class="col-12 col-lg-3">

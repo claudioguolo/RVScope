@@ -54,6 +54,9 @@ security.bootstrapAdminName=Administrador inicial
 
 # Chave usada para criptografar credenciais administrativas armazenadas no banco
 security.settingsEncryptionKey="SUBSTITUA_POR_UMA_CHAVE_ALEATORIA_COM_PELO_MENOS_32_CARACTERES"
+
+# Dominio permitido para as contas de origem dos testes de e-mail (sem @)
+emailTest.domain=envio.tjmt.jus.br
 ```
 
 Em homologação, use `CI_ENVIRONMENT=production` e `APP_STAGE=homologation`.
@@ -371,11 +374,13 @@ docker compose down
 Usuários autenticados acessam **Teste de e-mail** em dois modos: **Teste Rápido**,
 selecionado por padrão, usa a conta exclusiva de testes e os destinatários
 cadastrados; **Teste Personalizado** usa conta e senha temporárias, com origem
-fixa em `@envio.tjmt.jus.br`, e destino opcional que substitui os padrão.
+restrita ao domínio definido em `emailTest.domain` no `.env`, e destino opcional
+que substitui os padrão.
 Administradores cadastram a conta exclusiva, senha criptografada, destinatários,
 assunto e texto em **Usuários e configurações → Configurar teste de e-mail**.
-A conta de notificações permanece independente. O servidor/porta/segurança são
-compartilhados. O teste registra somente usuário e horário e exige 60 segundos
+A conta de notificações permanece independente. O servidor é compartilhado;
+a porta e a segurança dos testes podem ser configuradas separadamente.
+O teste registra somente usuário e horário e exige 60 segundos
 entre tentativas. Consulte [a documentação funcional](docs/funcionalidades.md#teste-de-e-mail--versão-120).
 
 ### Busca de VMs (v1.3.0)
@@ -393,3 +398,21 @@ continuam editáveis apenas por Editor/Administrador.
 Na versão **1.3.2**, a busca respeita os critérios da página principal: somente
 VMs ligadas e incluídas nos relatórios conforme as configurações de sistemas
 operacionais. O total e a paginação consideram apenas essas VMs.
+
+Na versão **1.3.3**, **Configurar teste de e-mail** permite definir a porta e a
+segurança SMTP dos testes. O botão **Usar 587 com STARTTLS** preenche o envio
+criptografado; clique em **Salvar configuração** para aplicar. As opções SSL/TLS
+e sem criptografia continuam disponíveis. Até salvar esses parâmetros pela
+primeira vez, os testes usam a porta e a segurança do SMTP geral. A mesma
+configuração é aplicada ao teste rápido e ao personalizado, com validação normal
+do certificado TLS, sem fallback para envio sem criptografia.
+
+Na versão **1.3.4**, o domínio das contas de teste é configurável por ambiente:
+por exemplo, `emailTest.domain=mail.exemplo.org`. Informe somente o domínio,
+sem protocolo ou porta; o `@` é exibido automaticamente nos formulários.
+Se omitido, mantém `envio.tjmt.jus.br`. A configuração vale para o cadastro da
+conta exclusiva e para contas alternativas; destinatários podem usar outros
+domínios. Ao trocar o domínio, atualize a conta exclusiva na administração e
+informe sua senha. Credenciais antigas não são alteradas automaticamente, e o
+teste rápido fica bloqueado enquanto a conta cadastrada usar outro domínio.
+O `.env` local permanece ignorado pelo Git; a chave também está em `.env.example`.

@@ -122,15 +122,19 @@ mesmo quando a consulta de relatórios é pública. Esta é uma autorização es
 para executar o diagnóstico, sem conceder edição de hosts ou configurações.
 
 O formulário envia somente o assunto e o corpo em texto simples definidos pelo
-administrador. Usa o servidor, porta e segurança SMTP já cadastrados, mas possui uma conta
-exclusiva de testes, independente da conta de notificações. O teste rápido vem
+administrador. Usa o servidor SMTP já cadastrado, mas possui uma conta
+exclusiva de testes, independente da conta de notificações. A partir da versão
+1.3.3, porta e segurança também podem ser definidas no cadastro de testes.
+O teste rápido vem
 selecionado e habilita somente o botão **Teste Rápido**. Ignora quaisquer campos
 alternativos enviados diretamente ao backend.
 
 Ao selecionar o outro rádio, o botão rápido é desabilitado e são habilitados
 conta, senha, destinatário personalizado e botão **Teste Personalizado**.
-O usuário informa somente o nome da conta: o sufixo `@envio.tjmt.jus.br` é fixo
-e validado também no backend. A conta completa é usada como SMTP USER e FROM.
+O usuário informa somente o nome da conta: o sufixo é definido pela configuração
+`emailTest.domain` do ambiente e validado também no backend. O domínio é exibido
+automaticamente nos formulários administrativo e personalizado. A conta completa
+é usada como SMTP USER e FROM.
 A senha é obrigatória no modo personalizado. O destino opcional substitui os
 destinatários padrão; vazio usa os padrão. Aceita até 20 endereços únicos.
 Os dados temporários não são persistidos nem repopulados após o envio.
@@ -139,12 +143,23 @@ O intervalo entre tentativas é de 60 segundos por usuário.
 Somente administradores acessam **Configurar teste de e-mail**
 (`admin/email-test`), também disponível em **Usuários e configurações**.
 Ali cadastram o usuário e a senha exclusivos dos testes, destinatários padrão,
-assunto e corpo. A senha usa AES-256-GCM e a chave externa
+assunto, corpo, porta e segurança SMTP. O botão **Usar 587 com STARTTLS**
+preenche porta 587 e a opção criptografada STARTTLS; é necessário salvar o
+formulário para aplicar. Também permanecem disponíveis SSL/TLS e nenhuma
+criptografia, além de outras portas válidas entre 1 e 65535. A seleção é
+validada no backend e vale para os testes rápido e personalizado. Até o
+primeiro salvamento, porta e segurança são herdadas do SMTP geral, preservando
+as instalações existentes. Depois disso, ficam independentes das notificações;
+o servidor e a habilitação de SMTP continuam compartilhados. STARTTLS exige
+suporte do servidor e certificado confiável, sem desabilitar validação TLS nem
+recorrer a uma conexão sem criptografia se a negociação falhar.
+As configurações usam novas chaves na tabela existente, sem mudança de esquema.
+A senha usa AES-256-GCM e a chave externa
 `security.settingsEncryptionKey`, sem reutilizar a senha de notificações.
 Senha vazia preserva a existente; trocar a conta exige informar a nova senha.
 Cadastros anteriores precisam receber a conta exclusiva antes do primeiro envio;
 não há cópia automática de credenciais. O domínio da conta cadastrada também é
-restrito a `@envio.tjmt.jus.br`. O texto inicial adapta o
+restrito ao domínio configurado no ambiente. O texto inicial adapta o
 script anterior para identificar o RVScope, sem dados pessoais ou credenciais.
 As configurações usam a tabela existente `app_settings`; não há alteração de
 estrutura nem migration necessária. Nenhuma credencial do script foi incorporada.
@@ -166,6 +181,16 @@ da tag efetiva da imagem, que continua sendo exibida quando configurada.
 
 A barra de debug não coleta as requisições de teste/configuração de e-mail,
 mesmo em desenvolvimento, para não persistir os campos do formulário.
+
+Na versão 1.3.4, configure `emailTest.domain=mail.exemplo.org` no `.env` para
+usar outro domínio de origem. O valor deve ser um domínio válido, sem protocolo,
+porta ou caminho; um `@` inicial opcional é normalizado. Se a chave estiver
+ausente, usa `envio.tjmt.jus.br` para compatibilidade. Um valor vazio ou inválido
+exibe erro na ferramenta e impede o envio, sem afetar as demais páginas.
+O domínio não pode ser substituído pelo formulário e não restringe os
+destinatários. Depois de mudar o domínio, recadastre a conta exclusiva e informe
+a senha na administração; não há alteração automática das credenciais salvas.
+O teste rápido exige que a conta cadastrada corresponda ao domínio atual.
 
 ## Busca de VMs — versão 1.3.0
 

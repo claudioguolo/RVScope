@@ -16,10 +16,13 @@ class SmtpMailer
             'username' => $configuration['username'],
             'password' => (new SettingsSecretProtector())->decrypt($configuration['password_encrypted']),
         ];
-        $this->send($recipients, $configuration['subject'], $configuration['body'], $account, true);
+        $this->send($recipients, $configuration['subject'], $configuration['body'], $account, true, [
+            'port' => $configuration['port'],
+            'crypto' => $configuration['crypto'],
+        ]);
     }
 
-    public function send(string|array $recipient, string $subject, string $message, ?array $temporaryAccount = null, bool $plainText = false): void
+    public function send(string|array $recipient, string $subject, string $message, ?array $temporaryAccount = null, bool $plainText = false, ?array $transport = null): void
     {
         $settings = (new AppSettingModel())->smtpConfiguration();
         if (! $settings['enabled']) {
@@ -40,8 +43,8 @@ class SmtpMailer
             'SMTPHost' => (string) $settings['host'],
             'SMTPUser' => (string) $settings['username'],
             'SMTPPass' => $password,
-            'SMTPPort' => (int) $settings['port'],
-            'SMTPCrypto' => (string) $settings['crypto'],
+            'SMTPPort' => (int) ($transport['port'] ?? $settings['port']),
+            'SMTPCrypto' => (string) ($transport['crypto'] ?? $settings['crypto']),
             'SMTPTimeout' => 10,
             'mailType' => $plainText ? 'text' : 'html',
             'charset' => 'UTF-8',

@@ -7,6 +7,7 @@ use App\Libraries\EmailTestUsage;
 use App\Libraries\EmailTestRequest;
 use App\Libraries\SettingsSecretProtector;
 use App\Libraries\SmtpMailer;
+use App\Libraries\SmtpTransportConfiguration;
 use App\Models\AppSettingModel;
 use CodeIgniter\Controller;
 use InvalidArgumentException;
@@ -16,21 +17,32 @@ class EmailTestController extends Controller
 {
     public function index()
     {
-        helper(['url', 'form']);
-        $this->response->setHeader('Cache-Control', 'no-store');
-        return view('tools/email_test', [
-            'configuration' => (new AppSettingModel())->emailTestConfiguration(),
-            'administrative' => false,
-        ]);
+        return $this->render(false);
     }
 
     public function settings()
     {
+        return $this->render(true);
+    }
+
+    private function render(bool $administrative)
+    {
         helper(['url', 'form']);
         $this->response->setHeader('Cache-Control', 'no-store');
+        $domain = '';
+        $domainError = null;
+        try {
+            $domain = EmailTestRequest::domain();
+        } catch (InvalidArgumentException $exception) {
+            $domainError = $administrative
+                ? $exception->getMessage()
+                : 'O domínio das contas de teste está indisponível. Solicite a correção ao administrador.';
+        }
         return view('tools/email_test', [
             'configuration' => (new AppSettingModel())->emailTestConfiguration(),
-            'administrative' => true,
+            'administrative' => $administrative,
+            'domain' => $domain,
+            'domainError' => $domainError,
         ]);
     }
 
@@ -39,6 +51,10 @@ class EmailTestController extends Controller
         try {
             $settings = new AppSettingModel();
             $current = $settings->emailTestConfiguration();
+            $transport = SmtpTransportConfiguration::fromArray([
+                'port' => $this->request->getPost('test_smtp_port'),
+                'crypto' => $this->request->getPost('test_smtp_crypto'),
+            ], $current['port'], $current['crypto']);
             $username = EmailTestRequest::account((string) $this->request->getPost('test_username'));
             $password = (string) $this->request->getPost('test_password');
             if (strlen($password) > 4096 || ($password === '' && ($current['password_encrypted'] === '' || $current['username'] !== $username))) {
@@ -53,6 +69,7 @@ class EmailTestController extends Controller
                 throw new InvalidArgumentException('Preencha destinatários, assunto (até 200 bytes, sem quebras de linha) e mensagem (até 10.000 bytes).');
             }
             (new AppSettingModel())->setEmailTestConfiguration([
+                'port' => $transport['port'], 'crypto' => $transport['crypto'],
                 'username' => $username, 'password_encrypted' => $encrypted,
                 'recipients' => implode(', ', $recipients), 'subject' => $subject, 'body' => $body,
             ]);
@@ -68,6 +85,7 @@ class EmailTestController extends Controller
     public function send()
     {
         try {
+            EmailTestRequest::domain();
             $configuration = (new AppSettingModel())->emailTestConfiguration();
             $resolved = EmailTestRequest::resolve([
                 'mode' => $this->request->getPost('mode'),
@@ -75,6 +93,9 @@ class EmailTestController extends Controller
                 'password' => $this->request->getPost('password'),
                 'custom_recipients' => $this->request->getPost('custom_recipients'),
             ], $configuration['recipients']);
+            if ($resolved['account'] === null && ! EmailTestRequest::matchesDomain($configuration['username'])) {
+                throw new InvalidArgumentException('Solicite ao administrador o cadastro da conta de testes no domínio configurado para este ambiente.');
+            }
         } catch (InvalidArgumentException $exception) {
             session()->setFlashdata('email_test_error', $exception->getMessage());
             return redirect()->to(site_url('tools/email-test'));

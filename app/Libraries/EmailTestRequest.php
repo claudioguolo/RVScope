@@ -6,13 +6,39 @@ use InvalidArgumentException;
 
 final class EmailTestRequest
 {
-    public const DOMAIN = '@envio.tjmt.jus.br';
+    public const DEFAULT_DOMAIN = 'envio.tjmt.jus.br';
+
+    public static function domain(): string
+    {
+        $configured = function_exists('env')
+            ? env('emailTest.domain', self::DEFAULT_DOMAIN)
+            : (getenv('emailTest.domain') !== false ? getenv('emailTest.domain') : self::DEFAULT_DOMAIN);
+        if (! is_string($configured)) {
+            throw new InvalidArgumentException('O domínio das contas de teste é inválido. Verifique emailTest.domain no ambiente.');
+        }
+        $domain = strtolower(trim($configured));
+        if (str_starts_with($domain, '@')) {
+            $domain = substr($domain, 1);
+        }
+        if ($domain === '' || strlen($domain) > 253
+            || ! filter_var($domain, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME)
+            || ! filter_var('rvscope@' . $domain, FILTER_VALIDATE_EMAIL)) {
+            throw new InvalidArgumentException('O domínio das contas de teste é inválido. Verifique emailTest.domain no ambiente.');
+        }
+        return $domain;
+    }
+
+    public static function matchesDomain(string $address): bool
+    {
+        return filter_var($address, FILTER_VALIDATE_EMAIL) !== false
+            && str_ends_with(strtolower($address), '@' . self::domain());
+    }
 
     public static function account(string $localPart): string
     {
         $localPart = trim($localPart);
-        $address = $localPart . self::DOMAIN;
-        if ($localPart === '' || str_contains($localPart, '@') || strlen($address) > 254
+        $address = $localPart . '@' . self::domain();
+        if ($localPart === '' || strlen($localPart) > 64 || str_contains($localPart, '@') || strlen($address) > 254
             || ! filter_var($address, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Informe somente o nome da conta, sem @ ou domínio.');
         }
