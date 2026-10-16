@@ -109,6 +109,7 @@ class AppSettingModel extends Model
         return [
             'port' => (int) $this->value('email_test_port', $this->value(self::SMTP_PORT_KEY, '587')),
             'crypto' => $this->value('email_test_crypto', $this->value(self::SMTP_CRYPTO_KEY, 'tls')),
+            'interval_seconds' => (int) $this->value('email_test_interval_seconds', (string) \App\Libraries\EmailTestUsage::DEFAULT_INTERVAL_SECONDS),
             'username' => $this->value('email_test_username'),
             'password_encrypted' => $this->value('email_test_password_encrypted'),
             'recipients' => $this->value('email_test_recipients'),
@@ -120,7 +121,7 @@ class AppSettingModel extends Model
     public function setEmailTestConfiguration(array $configuration): void
     {
         $this->db->transStart();
-        foreach (['port', 'crypto', 'username', 'recipients', 'subject', 'body'] as $field) {
+        foreach (['port', 'crypto', 'interval_seconds', 'username', 'recipients', 'subject', 'body'] as $field) {
             $this->setValue('email_test_' . $field, (string) $configuration[$field]);
         }
         if ($configuration['password_encrypted'] !== '') {

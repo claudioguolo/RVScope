@@ -7,6 +7,7 @@ use App\Libraries\EmailTestUsage;
 use App\Libraries\EmailTestRequest;
 use App\Libraries\SettingsSecretProtector;
 use App\Libraries\SmtpMailer;
+use App\Libraries\SmtpDeliveryException;
 use App\Libraries\SmtpTransportConfiguration;
 use App\Models\AppSettingModel;
 use CodeIgniter\Controller;
@@ -55,6 +56,9 @@ class EmailTestController extends Controller
                 'port' => $this->request->getPost('test_smtp_port'),
                 'crypto' => $this->request->getPost('test_smtp_crypto'),
             ], $current['port'], $current['crypto']);
+            $interval = EmailTestUsage::validateInterval(
+                $this->request->getPost('test_interval_seconds') ?? $current['interval_seconds'],
+            );
             $username = EmailTestRequest::account((string) $this->request->getPost('test_username'));
             $password = (string) $this->request->getPost('test_password');
             if (strlen($password) > 4096 || ($password === '' && ($current['password_encrypted'] === '' || $current['username'] !== $username))) {
@@ -70,6 +74,7 @@ class EmailTestController extends Controller
             }
             (new AppSettingModel())->setEmailTestConfiguration([
                 'port' => $transport['port'], 'crypto' => $transport['crypto'],
+                'interval_seconds' => $interval,
                 'username' => $username, 'password_encrypted' => $encrypted,
                 'recipients' => implode(', ', $recipients), 'subject' => $subject, 'body' => $body,
             ]);
@@ -104,7 +109,10 @@ class EmailTestController extends Controller
             return redirect()->to(site_url('tools/email-test'));
         }
         try {
-            (new EmailTestUsage())->record((int) (session('auth_user_id') ?: session('admin_user_id')));
+            (new EmailTestUsage())->record(
+                (int) (session('auth_user_id') ?: session('admin_user_id')),
+                $configuration['interval_seconds'],
+            );
         } catch (Throwable $exception) {
             session()->setFlashdata('email_test_error', $exception->getMessage());
             return redirect()->to(site_url('tools/email-test'));
@@ -112,6 +120,8 @@ class EmailTestController extends Controller
         try {
             (new SmtpMailer())->sendTest($resolved['recipients'], $configuration, $resolved['account']);
             session()->setFlashdata('email_test_success', 'O servidor SMTP aceitou a mensagem de teste. Isso não confirma a entrega na caixa de entrada.');
+        } catch (SmtpDeliveryException $exception) {
+            session()->setFlashdata('email_test_error', 'Não foi possível enviar o teste. ' . $exception->getMessage());
         } catch (Throwable $exception) {
             session()->setFlashdata('email_test_error', 'Não foi possível enviar o teste. Verifique se o SMTP está habilitado, as credenciais e a disponibilidade do serviço.');
         }

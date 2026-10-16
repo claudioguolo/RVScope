@@ -43,4 +43,46 @@ final class EmailTestTest extends TestCase
             unlink($path);
         }
     }
+
+    public function testZeroIntervalAllowsConsecutiveTestsAndStillLogsUsage(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rvscope-email-');
+        try {
+            $usage = new EmailTestUsage($path);
+            $usage->record(12, 0);
+            (new EmailTestUsage($path))->record(12, 0);
+            self::assertCount(2, file($path, FILE_IGNORE_NEW_LINES));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function testConfiguredIntervalAppliesToPreviousUsage(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rvscope-email-');
+        try {
+            file_put_contents($path, json_encode(['user_id' => 12, 'timestamp' => time() - 30, 'date' => gmdate('c')]) . "\n");
+            (new EmailTestUsage($path))->record(12, 5);
+            self::assertCount(2, file($path, FILE_IGNORE_NEW_LINES));
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('Aguarde 120 segundos');
+            (new EmailTestUsage($path))->record(12, 120);
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function testRejectsInvalidIntervals(): void
+    {
+        foreach ([-1, 3601, '1.5', ['0'], '', false] as $input) {
+            try {
+                EmailTestUsage::validateInterval($input);
+                self::fail('Intervalo inválido foi aceito.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertSame('Informe um intervalo inteiro entre 0 e 3600 segundos.', $exception->getMessage());
+            }
+        }
+        self::assertSame(0, EmailTestUsage::validateInterval('0'));
+        self::assertSame(3600, EmailTestUsage::validateInterval('3600'));
+    }
 }

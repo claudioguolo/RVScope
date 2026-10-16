@@ -3,18 +3,18 @@
 namespace App\Libraries;
 
 use App\Models\AppSettingModel;
-use RuntimeException;
+use Throwable;
 
 class SmtpMailer
 {
     public function sendTest(array $recipients, array $configuration, ?array $alternative): void
     {
         if ($configuration['username'] === '' || $configuration['password_encrypted'] === '') {
-            throw new RuntimeException('Cadastre a conta exclusiva de testes na administração.');
+            throw new SmtpDeliveryException('Configuração: cadastre a conta exclusiva de testes e sua senha na administração.');
         }
         $account = $alternative ?? [
             'username' => $configuration['username'],
-            'password' => (new SettingsSecretProtector())->decrypt($configuration['password_encrypted']),
+            'password' => $this->decryptPassword($configuration['password_encrypted']),
         ];
         $this->send($recipients, $configuration['subject'], $configuration['body'], $account, true, [
             'port' => $configuration['port'],
@@ -26,12 +26,12 @@ class SmtpMailer
     {
         $settings = (new AppSettingModel())->smtpConfiguration();
         if (! $settings['enabled']) {
-            throw new RuntimeException('O envio SMTP está desabilitado.');
+            throw new SmtpDeliveryException('Configuração: o envio SMTP está desabilitado. Solicite a habilitação ao administrador.');
         }
 
         $password = $temporaryAccount !== null
             ? $temporaryAccount['password']
-            : (new SettingsSecretProtector())->decrypt((string) $settings['password_encrypted']);
+            : $this->decryptPassword((string) $settings['password_encrypted']);
         if ($temporaryAccount !== null) {
             $settings['username'] = $temporaryAccount['username'];
             $settings['from_email'] = $temporaryAccount['username'];
@@ -56,7 +56,16 @@ class SmtpMailer
         $email->setMessage($message);
 
         if (! $email->send()) {
-            throw new RuntimeException('O servidor SMTP recusou o envio da mensagem.');
+            throw new SmtpDeliveryException($email->failureMessage());
+        }
+    }
+
+    private function decryptPassword(string $encrypted): string
+    {
+        try {
+            return (new SettingsSecretProtector())->decrypt($encrypted);
+        } catch (Throwable $exception) {
+            throw new SmtpDeliveryException('Configuração: não foi possível recuperar a senha SMTP. O administrador deve verificar a chave de criptografia e recadastrar a credencial.');
         }
     }
 }

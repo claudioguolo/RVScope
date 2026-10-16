@@ -138,12 +138,19 @@ automaticamente nos formulários administrativo e personalizado. A conta complet
 A senha é obrigatória no modo personalizado. O destino opcional substitui os
 destinatários padrão; vazio usa os padrão. Aceita até 20 endereços únicos.
 Os dados temporários não são persistidos nem repopulados após o envio.
-O intervalo entre tentativas é de 60 segundos por usuário.
+O intervalo entre tentativas é configurável pelo administrador, com padrão de
+60 segundos por usuário. A opção **Intervalo entre testes (segundos)** aceita
+inteiros entre 0 e 3600; 0 permite testes consecutivos sem espera (versão 1.3.5).
+O valor é salvo em `email_test_interval_seconds` na tabela `app_settings`, sem
+alteração de esquema. A configuração vale para os dois modos de teste e é
+aplicada no backend usando o log existente, inclusive entre sessões. Tentativas
+que falham no SMTP também contam no intervalo; bloquear por intervalo não
+reinicia a espera. Mesmo com intervalo 0, identificação e horário são registrados.
 
 Somente administradores acessam **Configurar teste de e-mail**
 (`admin/email-test`), também disponível em **Usuários e configurações**.
 Ali cadastram o usuário e a senha exclusivos dos testes, destinatários padrão,
-assunto, corpo, porta e segurança SMTP. O botão **Usar 587 com STARTTLS**
+assunto, corpo, porta, segurança SMTP e intervalo entre testes. O botão **Usar 587 com STARTTLS**
 preenche porta 587 e a opção criptografada STARTTLS; é necessário salvar o
 formulário para aplicar. Também permanecem disponíveis SSL/TLS e nenhuma
 criptografia, além de outras portas válidas entre 1 e 65535. A seleção é
@@ -191,6 +198,32 @@ O domínio não pode ser substituído pelo formulário e não restringe os
 destinatários. Depois de mudar o domínio, recadastre a conta exclusiva e informe
 a senha na administração; não há alteração automática das credenciais salvas.
 O teste rápido exige que a conta cadastrada corresponda ao domínio atual.
+
+Para falhas na negociação TLS, consulte o
+[roteiro de diagnóstico do Carbonio na porta 587](smtp-carbonio-starttls.md).
+As consultas de diagnóstico não enviam mensagens nem alteram o servidor SMTP.
+
+Na versão 1.3.6, o resultado de falha do teste inclui um diagnóstico com a
+etapa, servidor, porta, segurança e códigos SMTP numéricos disponíveis
+(por exemplo, 454/4.7.0 para STARTTLS e 535/5.7.8 para autenticação).
+Os códigos identificam a resposta, sem expor seu texto bruto. O transporte
+reconhece avisos de DNS, conexão recusada, timeout, certificado não confiável,
+nome de certificado divergente, validade e incompatibilidade de protocolo TLS.
+Quando o aviso não identifica a causa exata, apresenta orientação para a etapa
+que falhou, sem atribuir uma causa não confirmada.
+
+O diagnóstico permanece na mensagem temporária de resultado e não amplia o
+log de uso. Não contém senha, usuário SMTP, destinatários, corpo da mensagem,
+transcript ou detalhes brutos de exceções. Erros de configuração, como SMTP
+desabilitado ou falha ao recuperar a senha criptografada, também têm mensagens
+específicas. O controller expõe apenas a exceção de diagnóstico criada pela
+aplicação; erros inesperados continuam com mensagem genérica.
+
+A extensão do transporte interrompe o envio quando um comando necessário é
+recusado, especialmente STARTTLS, e captura avisos de rede/OpenSSL dentro do
+envio, preservando o handler global depois da operação. Mantém as verificações
+TLS do framework e não tenta autenticar após falha de negociação. Falha no QUIT
+não substitui a confirmação de aceitação da mensagem já recebida do servidor.
 
 ## Busca de VMs — versão 1.3.0
 

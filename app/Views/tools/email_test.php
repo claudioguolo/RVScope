@@ -45,6 +45,11 @@
                     <div class="form-text">Preenche porta 587 e STARTTLS. Clique em Salvar configuração para aplicar. O servidor deve oferecer STARTTLS e apresentar certificado TLS válido.</div>
                 </div>
                 <div class="col-md-6">
+                    <label for="test_interval_seconds" class="form-label">Intervalo entre testes (segundos)</label>
+                    <input id="test_interval_seconds" name="test_interval_seconds" type="number" min="0" max="3600" step="1" class="form-control" required value="<?= (int) $configuration['interval_seconds'] ?>">
+                    <div class="form-text">Limite por usuário, entre 0 e 3600 segundos. Use 0 para permitir testes consecutivos sem espera. Padrão: 60 segundos.</div>
+                </div>
+                <div class="col-md-6">
                     <label for="test_username" class="form-label">Conta exclusiva de testes</label>
                     <div class="input-group"><input id="test_username" name="test_username" class="form-control" maxlength="64" autocomplete="off" required value="<?= esc(explode('@', $configuration['username'])[0], 'attr') ?>"><span class="input-group-text">@<?= esc($domain) ?></span></div>
                 </div>
@@ -80,7 +85,14 @@
                 <div class="col-12"><button id="custom-button" type="submit" class="btn btn-brand" disabled>Teste Personalizado</button></div>
             </form>
             <noscript><p class="text-secondary mt-3">Ative o JavaScript para selecionar o teste personalizado. O teste rápido continua disponível.</p></noscript>
-            <p class="small text-secondary mt-3">Intervalo mínimo de 60 segundos entre testes. Somente a identificação do usuário e a data/hora da tentativa são registradas.</p>
+            <p class="small text-secondary mt-3">
+                <?php if ($configuration['interval_seconds'] > 0): ?>
+                    Intervalo mínimo de <?= (int) $configuration['interval_seconds'] ?> <?= $configuration['interval_seconds'] === 1 ? 'segundo' : 'segundos' ?> entre testes do mesmo usuário.
+                <?php else: ?>
+                    Testes sem intervalo mínimo de espera.
+                <?php endif; ?>
+                Somente a identificação do usuário e a data/hora da tentativa são registradas.
+            </p>
             <details class="mt-3"><summary>Ver mensagem padrão</summary><p class="mt-2"><strong><?= esc($configuration['subject']) ?></strong></p><div style="white-space: pre-wrap"><?= esc($configuration['body']) ?></div></details>
             <?php if (\App\Libraries\UserAuthorization::canAdminister()): ?>
                 <a class="btn btn-outline-secondary mt-3" href="<?= site_url('admin/email-test') ?>">Configurar teste de e-mail</a>

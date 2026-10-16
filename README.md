@@ -380,8 +380,9 @@ Administradores cadastram a conta exclusiva, senha criptografada, destinatários
 assunto e texto em **Usuários e configurações → Configurar teste de e-mail**.
 A conta de notificações permanece independente. O servidor é compartilhado;
 a porta e a segurança dos testes podem ser configuradas separadamente.
-O teste registra somente usuário e horário e exige 60 segundos
-entre tentativas. Consulte [a documentação funcional](docs/funcionalidades.md#teste-de-e-mail--versão-120).
+O teste registra somente usuário e horário. O administrador configura o intervalo
+entre tentativas por usuário (60 segundos por padrão; 0 permite testes sem espera).
+Consulte [a documentação funcional](docs/funcionalidades.md#teste-de-e-mail--versão-120).
 
 ### Busca de VMs (v1.3.0)
 
@@ -416,3 +417,16 @@ domínios. Ao trocar o domínio, atualize a conta exclusiva na administração e
 informe sua senha. Credenciais antigas não são alteradas automaticamente, e o
 teste rápido fica bloqueado enquanto a conta cadastrada usar outro domínio.
 O `.env` local permanece ignorado pelo Git; a chave também está em `.env.example`.
+
+Na versão **1.3.5**, configure **Intervalo entre testes (segundos)** em
+**Usuários e configurações → Configurar teste de e-mail**. Aceita valores inteiros
+de 0 a 3600, com padrão de 60. O limite vale por usuário, entre sessões, para
+os testes rápido e personalizado, inclusive tentativas que falham no SMTP.
+Use 0 e salve para enviar novos testes sem espera; o registro de uso é preservado.
+Consulte também o [diagnóstico STARTTLS no Carbonio](docs/smtp-carbonio-starttls.md).
+
+Na versão **1.3.6**, falhas de envio apresentam etapa, host, porta, segurança e
+códigos SMTP disponíveis. O diagnóstico distingue conexão/DNS/timeout,
+recusa de STARTTLS, negociação/certificado TLS, autenticação, remetente,
+destinatário e confirmação da mensagem. Mensagens brutas, credenciais e
+conteúdo do e-mail não são exibidos nem adicionados ao log de uso.
