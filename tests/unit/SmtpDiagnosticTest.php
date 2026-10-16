@@ -34,6 +34,7 @@ final class SmtpDiagnosticTest extends TestCase
     public static function knownProblems(): array
     {
         return [
+            ['failed loading cafile stream: /private/path/secret-token', 'conferir smtp.caFile'],
             ['SSL operation failed: certificate verify failed', 'não conseguiu validar o certificado'],
             ['Peer certificate CN did not match expected CN', 'nome do certificado não corresponde'],
             ['certificate has expired', 'fora do período de validade'],

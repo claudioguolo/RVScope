@@ -50,6 +50,7 @@ class SmtpMailer
             'charset' => 'UTF-8',
             'wordWrap' => true,
         ]);
+        $email->setTrustedCaFile((string) env('smtp.caFile', ''));
         $email->setFrom((string) $settings['from_email'], (string) $settings['from_name']);
         $email->setTo($recipient);
         $email->setSubject($subject);

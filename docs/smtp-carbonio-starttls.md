@@ -50,6 +50,71 @@ Se usar CA interna, disponibilize a cadeia pública de confiança no container
 e no PHP/OpenSSL. A CA instalada apenas no host Docker não é automaticamente
 confiável dentro da aplicação. Não desabilite verificação TLS como solução.
 
+### Configurar uma CA interna no RVScope (1.3.7)
+
+Uma falha `certificate verify failed` na etapa **negociação TLS** acontece antes
+da autenticação SMTP. Pode indicar CA ausente, cadeia incompleta ou certificado
+fora da validade; a mensagem isolada não distingue essas causas.
+
+Quando o certificado é emitido por uma CA interna, obtenha da equipe responsável
+pela PKI o certificado público da CA raiz e as intermediárias necessárias, em
+formato PEM. Confirme a origem e a impressão SHA-256 por um canal confiável.
+Não use a chave privada nem transforme o certificado do servidor SMTP em CA.
+
+1. Na máquina Docker, salve a cadeia pública como `certs/smtp-ca.crt`. O Compose
+   já monta `certs/` em `/etc/ssl/private`, somente para leitura.
+2. Garanta que o processo da aplicação consiga atravessar esse diretório e ler
+   o arquivo. Para o certificado público, `chmod 644 certs/smtp-ca.crt` é
+   apropriado; preserve as permissões restritas das chaves privadas.
+3. No `.env` local, configure:
+
+   ```dotenv
+   smtp.caFile=/etc/ssl/private/smtp-ca.crt
+   ```
+
+4. Com a versão 1.3.7 instalada, faça a verificação abaixo e execute novamente
+   o teste de e-mail. Alterações no arquivo montado e no `.env` são lidas nos
+   próximos envios, sem recompilar a imagem por causa do certificado.
+
+Verifique a leitura como o usuário do Apache e a confiança a partir do container:
+
+```bash
+docker exec --user www-data rvscope_app \
+  test -r /etc/ssl/private/smtp-ca.crt
+
+docker exec --user www-data -i rvscope_app timeout 20 openssl s_client \
+  -connect envio.tjmt.jus.br:587 \
+  -starttls smtp \
+  -servername envio.tjmt.jus.br \
+  -verify_hostname envio.tjmt.jus.br \
+  -CAfile /etc/ssl/private/smtp-ca.crt \
+  -verify_return_error \
+  -brief </dev/null
+```
+
+O primeiro comando deve terminar com código zero. O segundo deve mostrar
+`Verification: OK`. Ajuste host e usuário do container em outros ambientes.
+Se a CA correta estiver disponível e a validação continuar falhando, confira
+o certificado efetivamente apresentado em 587, sua validade e a cadeia de
+intermediárias configurada no MTA.
+
+`smtp.caFile` é uma configuração de implantação, sob responsabilidade do
+administrador. Aplica-se a testes e notificações, tanto com STARTTLS quanto
+com TLS implícito. Vazio ou ausente usa as CAs padrão do PHP/OpenSSL. Um caminho
+configurado deve ser absoluto, local, regular e legível; arquivo ausente ou
+inválido causa erro, sem ignorar a configuração ou reduzir a validação.
+O contexto TLS é exclusivo da conexão SMTP: a confiança usada por HTTPS e
+LDAPS não é alterada. Certificado, validade e nome do servidor continuam sendo
+verificados, e falha TLS impede a autenticação e o envio da mensagem.
+Os certificados e o `.env` permanecem fora do Git e da imagem.
+
+Fonte: [opções de contexto SSL do PHP](https://www.php.net/manual/en/context.ssl.php).
+
+Para validar o transporte sem banco nem SMTP externo, execute `composer test`.
+A suíte de integração usa uma CA temporária e um servidor SMTP restrito ao
+loopback para verificar STARTTLS, TLS implícito, CA ausente/inválida e nome
+divergente. Os arquivos temporários e processos são removidos ao concluir.
+
 ## 2. Consultar o MTA no servidor Carbonio
 
 Execute no nó responsável por receber as conexões SMTP. Consulte o listener:

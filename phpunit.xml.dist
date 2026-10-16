@@ -8,6 +8,9 @@
         <testsuite name="RVScope Unit">
             <directory>tests/unit</directory>
         </testsuite>
+        <testsuite name="RVScope SMTP Integration">
+            <directory>tests/integration</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

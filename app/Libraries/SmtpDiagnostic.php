@@ -36,6 +36,7 @@ final class SmtpDiagnostic
     {
         $message = strtolower($message);
         $reasons = [
+            'ca_file' => ['failed loading cafile', 'failed to load cafile', 'error setting certificate file', 'failed loading capath'],
             'certificate_name' => ['did not match expected', 'hostname mismatch', 'peer name'],
             'certificate_expired' => ['certificate has expired', 'certificate expired', 'certificate is not yet valid'],
             'certificate_trust' => ['certificate verify failed', 'self-signed certificate', 'self signed certificate', 'unable to get local issuer', 'unable to verify the first certificate'],
@@ -49,7 +50,7 @@ final class SmtpDiagnostic
             foreach ($patterns as $pattern) {
                 if (str_contains($message, $pattern)) {
                     $this->reason = $reason;
-                    if (str_starts_with($reason, 'certificate_') || $reason === 'tls_protocol') {
+                    if (str_starts_with($reason, 'certificate_') || in_array($reason, ['tls_protocol', 'ca_file'], true)) {
                         $this->stage = 'tls';
                     }
                     return;
@@ -79,9 +80,10 @@ final class SmtpDiagnostic
             'message' => 'O servidor não confirmou a aceitação da mensagem. Verifique limites e políticas de envio.',
         ];
         $reasons = [
+            'ca_file' => 'Não foi possível carregar a CA SMTP. O administrador deve conferir smtp.caFile, o formato PEM e as permissões do arquivo no container.',
             'certificate_name' => 'O nome do certificado não corresponde ao host SMTP. Confira o SAN do certificado apresentado pelo MTA.',
             'certificate_expired' => 'O certificado TLS está fora do período de validade. Confira validade e relógio dos servidores.',
-            'certificate_trust' => 'O PHP/OpenSSL não conseguiu validar o certificado TLS (certificate verify failed). Confira validade, cadeia intermediária e CA confiável no container.',
+            'certificate_trust' => 'O PHP/OpenSSL não conseguiu validar o certificado TLS (certificate verify failed). Confira validade, cadeia intermediária e CA confiável no container. Para CA interna, o administrador pode configurar smtp.caFile com a cadeia pública confiável.',
             'dns' => 'Não foi possível resolver o nome do servidor SMTP. Verifique o host e o DNS do container.',
             'refused' => 'A conexão TCP foi recusada. Verifique se existe um serviço escutando nessa porta.',
             'timeout' => 'Tempo de espera excedido (' . $this->timeout . ' segundos). Verifique resposta do servidor e conectividade.',

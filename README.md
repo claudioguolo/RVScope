@@ -430,3 +430,10 @@ códigos SMTP disponíveis. O diagnóstico distingue conexão/DNS/timeout,
 recusa de STARTTLS, negociação/certificado TLS, autenticação, remetente,
 destinatário e confirmação da mensagem. Mensagens brutas, credenciais e
 conteúdo do e-mail não são exibidos nem adicionados ao log de uso.
+
+Na versão **1.3.7**, uma CA SMTP interna pode ser configurada no `.env` com
+`smtp.caFile=/etc/ssl/private/smtp-ca.crt`. Salve a cadeia pública PEM confiável
+em `certs/smtp-ca.crt`, legível pela aplicação. A opção vale para testes e
+notificações, com STARTTLS ou TLS implícito. Vazio usa as CAs padrão; certificado,
+validade e hostname continuam sendo verificados. Consulte o
+[passo a passo para CA interna](docs/smtp-carbonio-starttls.md#configurar-uma-ca-interna-no-rvscope-137).

@@ -219,6 +219,17 @@ desabilitado ou falha ao recuperar a senha criptografada, também têm mensagens
 específicas. O controller expõe apenas a exceção de diagnóstico criada pela
 aplicação; erros inesperados continuam com mensagem genérica.
 
+Na versão 1.3.7, o administrador da implantação pode definir `smtp.caFile` no
+`.env` com o caminho absoluto de uma cadeia pública PEM confiável, montada no
+container. Por exemplo, `certs/smtp-ca.crt` no host fica disponível como
+`/etc/ssl/private/smtp-ca.crt` no Compose existente. A configuração é compartilhada
+por testes e notificações e atende STARTTLS e TLS implícito. Ausente ou vazio
+usa as CAs padrão do PHP/OpenSSL. Arquivo configurado ausente, ilegível ou inválido
+produz erro; o transporte preserva a validação de confiança, validade e hostname.
+A falha TLS interrompe o fluxo antes de autenticar ou enviar a mensagem.
+O contexto não afeta HTTPS ou LDAPS. Certificados e `.env` não são versionados.
+Consulte o [procedimento para a CA SMTP interna](smtp-carbonio-starttls.md#configurar-uma-ca-interna-no-rvscope-137).
+
 A extensão do transporte interrompe o envio quando um comando necessário é
 recusado, especialmente STARTTLS, e captura avisos de rede/OpenSSL dentro do
 envio, preservando o handler global depois da operação. Mantém as verificações

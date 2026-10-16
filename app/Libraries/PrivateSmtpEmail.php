@@ -12,6 +12,16 @@ class PrivateSmtpEmail extends Email
 {
     private ?SmtpDiagnostic $diagnostic = null;
     private bool $cleanupCommand = false;
+    private string $trustedCaFile = '';
+
+    public function setTrustedCaFile(string $path): void
+    {
+        $path = trim($path);
+        if ($path !== '' && (! str_starts_with($path, '/') || ! is_file($path) || ! is_readable($path))) {
+            throw new SmtpDeliveryException('Configuração TLS: o arquivo da CA SMTP não existe ou não pode ser lido pela aplicação. O administrador deve conferir smtp.caFile no ambiente e a montagem do certificado público no container.');
+        }
+        $this->trustedCaFile = $path;
+    }
 
     public function failureMessage(): string
     {
@@ -46,7 +56,55 @@ class PrivateSmtpEmail extends Email
     protected function SMTPConnect()
     {
         $this->diagnostic?->begin('connection');
-        return parent::SMTPConnect();
+        if ($this->isSMTPConnected()) {
+            return true;
+        }
+
+        // Contexto exclusivo desta conexão: não afeta HTTPS, LDAPS ou outros streams.
+        $ssl = [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+            'allow_self_signed' => false,
+            'peer_name' => $this->SMTPHost,
+        ];
+        if ($this->trustedCaFile !== '') {
+            $ssl['cafile'] = $this->trustedCaFile;
+        }
+        $host = str_contains($this->SMTPHost, ':') ? '[' . $this->SMTPHost . ']' : $this->SMTPHost;
+        $this->SMTPConnect = stream_socket_client(
+            'tcp://' . $host . ':' . $this->SMTPPort,
+            $errorCode,
+            $errorMessage,
+            $this->SMTPTimeout,
+            STREAM_CLIENT_CONNECT,
+            stream_context_create(['ssl' => $ssl]),
+        );
+        if (! is_resource($this->SMTPConnect)) {
+            throw new RuntimeException('Não foi possível abrir a conexão SMTP.');
+        }
+        stream_set_timeout($this->SMTPConnect, $this->SMTPTimeout);
+
+        $implicitTls = $this->SMTPCrypto === 'ssl' || $this->SMTPPort === 465;
+        if ($implicitTls) {
+            $this->enableVerifiedTls();
+        }
+        if (! str_starts_with($this->getSMTPData(), '220')) {
+            throw new RuntimeException('Saudação inicial SMTP recusada.');
+        }
+        if (! $implicitTls && $this->SMTPCrypto === 'tls') {
+            $this->sendCommand('hello');
+            $this->sendCommand('starttls');
+            $this->enableVerifiedTls();
+        }
+        return $this->sendCommand('hello');
+    }
+
+    private function enableVerifiedTls(): void
+    {
+        $this->diagnostic?->begin('tls');
+        if (stream_socket_enable_crypto($this->SMTPConnect, true, STREAM_CRYPTO_METHOD_TLS_CLIENT) !== true) {
+            throw new RuntimeException('A negociação TLS não foi concluída.');
+        }
     }
 
     protected function SMTPAuthenticate()
