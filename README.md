@@ -437,3 +437,6 @@ em `certs/smtp-ca.crt`, legível pela aplicação. A opção vale para testes e
 notificações, com STARTTLS ou TLS implícito. Vazio usa as CAs padrão; certificado,
 validade e hostname continuam sendo verificados. Consulte o
 [passo a passo para CA interna](docs/smtp-carbonio-starttls.md#configurar-uma-ca-interna-no-rvscope-137).
+Se o diretório `/etc/ssl/private` bloquear o acesso do PHP, consulte a
+[montagem separada da CA pública](docs/smtp-carbonio-starttls.md#erro-permission-denied-ao-acessar-a-ca)
+em `/etc/ssl/certs/rvscope-smtp-ca.crt` e ajuste `smtp.caFile` para esse caminho.

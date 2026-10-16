@@ -98,6 +98,46 @@ Se a CA correta estiver disponível e a validação continuar falhando, confira
 o certificado efetivamente apresentado em 587, sua validade e a cadeia de
 intermediárias configurada no MTA.
 
+#### Erro `Permission denied` ao acessar a CA
+
+Se o `ls` executado como `www-data` retorna `Permission denied`, pode haver
+restrição de travessia em um diretório do caminho, além das permissões do
+próprio arquivo ou do SELinux. Tornar somente o arquivo legível com `chmod 644`
+não resolve uma restrição no diretório pai.
+
+Nesse ambiente, monte a CA pública diretamente em `/etc/ssl/certs`, preservando
+as permissões do diretório de chaves privadas. No serviço `app` do Compose
+efetivamente usado para iniciar o RVScope, acrescente à lista `volumes`:
+
+```yaml
+      - ./certs/smtp-ca.crt:/etc/ssl/certs/rvscope-smtp-ca.crt:ro,Z
+```
+
+O arquivo `certs/smtp-ca.crt` deve existir antes de recriar o container; confirme
+com `test -f certs/smtp-ca.crt` e permita sua leitura com
+`chmod 644 certs/smtp-ca.crt`. No `.env`, ajuste:
+
+```dotenv
+smtp.caFile=/etc/ssl/certs/rvscope-smtp-ca.crt
+```
+
+Recrie somente o serviço `app` usando os mesmos arquivos Compose já utilizados
+na implantação. Por exemplo, para `docker-compose.yaml`:
+
+```bash
+docker compose -f docker-compose.yaml config --quiet
+docker compose -f docker-compose.yaml up -d --no-deps --force-recreate app
+docker exec --user www-data rvscope_app \
+  test -r /etc/ssl/certs/rvscope-smtp-ca.crt && echo "CA acessível"
+```
+
+Em desenvolvimento, use `-f docker-compose.dev.yaml`; se houver outros arquivos
+Compose de sobreposição, preserve-os no comando. Alterar volumes exige recriar
+o container; um simples `docker restart` não aplica a nova montagem. Na
+verificação com OpenSSL, use também o novo caminho em `-CAfile`.
+
+Fonte: [montagens e volumes no Docker Compose](https://docs.docker.com/reference/compose-file/services/#volumes).
+
 `smtp.caFile` é uma configuração de implantação, sob responsabilidade do
 administrador. Aplica-se a testes e notificações, tanto com STARTTLS quanto
 com TLS implícito. Vazio ou ausente usa as CAs padrão do PHP/OpenSSL. Um caminho
