@@ -7,6 +7,13 @@ dados de cada host e oferece relatórios, exportações CSV e gráficos. O catá
 atual de recursos e regras de negócio está em
 [`docs/funcionalidades.md`](docs/funcionalidades.md).
 
+Na versão **1.4.0**, o menu **Controle de Erratas** oferece o histórico diário
+do Satellite por tipo, gráfico e acordeão por data, além da consulta por host
+com busca parcial por nome, IP ou hostname. Administradores importam o TXT atual
+em **Usuários e configurações → Dados de erratas**. O cron pode enviar novas
+coletas por POST autenticado, com um token exclusivo no ambiente. Consulte o
+[guia de coleta e relatórios de erratas](docs/controle-de-erratas.md).
+
 ## Requisitos
 - Docker Engine + Docker Compose
 - Porta 8443 liberada (HTTPS)

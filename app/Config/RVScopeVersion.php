@@ -4,5 +4,5 @@ namespace Config;
 
 final class RVScopeVersion
 {
-    public const VERSION = '1.3.7';
+    public const VERSION = '1.4.0';
 }

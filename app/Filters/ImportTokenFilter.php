@@ -10,9 +10,10 @@ class ImportTokenFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
+        $erratas = in_array('erratas', (array) $arguments, true);
         $configuredToken = trim((string) (
-            env('security.importToken')
-            ?: getenv('RVSCOPE_IMPORT_TOKEN')
+            env($erratas ? 'security.errataImportToken' : 'security.importToken')
+            ?: getenv($erratas ? 'RVSCOPE_ERRATA_IMPORT_TOKEN' : 'RVSCOPE_IMPORT_TOKEN')
             ?: ''
         ));
 
@@ -20,7 +21,7 @@ class ImportTokenFilter implements FilterInterface
             return service('response')
                 ->setStatusCode(503)
                 ->setJSON([
-                    'error' => 'Importação automatizada não configurada.',
+                    'error' => $erratas ? 'Coleta de erratas não configurada.' : 'Importação automatizada não configurada.',
                 ]);
         }
 

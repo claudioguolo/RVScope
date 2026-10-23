@@ -28,6 +28,7 @@
         <a class="btn btn-outline-secondary" href="<?= site_url('admin/catalogs') ?>">Gerências e responsáveis</a>
         <a class="btn btn-outline-secondary" href="<?= site_url('admin/host-management-migration') ?>">Migrar hosts</a>
         <a class="btn btn-outline-secondary" href="<?= site_url('admin/operating-systems') ?>">Sistemas operacionais</a>
+        <a class="btn btn-outline-secondary" href="<?= site_url('admin/erratas') ?>">Dados de erratas</a>
     </div>
 
     <div class="app-card p-4 mb-4">

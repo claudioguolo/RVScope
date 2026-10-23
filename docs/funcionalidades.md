@@ -30,6 +30,41 @@ importação, relatório, permissão ou cadastro administrativo.
 - A interface de importação exige Editor ou Administrador. Automações usam
   `POST /api/import` com um token exclusivo de pelo menos 32 caracteres.
 
+## Controle de Erratas — versão 1.4.0
+
+O menu principal inclui **Controle de Erratas → Erratas por Dia / Erratas com
+Host**, preservando as demais opções e o tema. Os relatórios seguem a configuração
+de acesso autenticado do sistema. Somente administradores importam dados em
+**Usuários e configurações → Dados de erratas**.
+
+O diário aceita o TXT existente do cron, inclusive `23-10-202610:00 - 260 bugfix ;
+5 enhancement ; 469 security ; 3 unspecified ;`. A quantidade vem dos números
+por tipo: nesse exemplo, **737**. Datas e horários são tratados como UTC, conforme
+o `date -u` do coletor. O relatório mantém o acordeão por dia, mostra o saldo da
+última coleta, preserva horários anteriores, oferece filtro por período, gráfico
+dos últimos 90 dias com dados e paginação de 50 dias. Não soma snapshots entre dias.
+
+O relatório com host recebe um CSV separado, pois o TXT agregado não identifica
+hosts. A busca usa trechos de nome, hostname/DNS ou IP e ignora caixa. A associação
+Satellite/RVTools usa nomes completos ou IP na mesma data, recusa ambiguidades
+e lista somente VMs ligadas e incluídas nas políticas de SO. O botão de detalhes
+reutiliza as permissões e os campos importados inativos do cadastro de hosts.
+A soma por host pode contar uma errata em vários hosts e diferir do total diário.
+
+Automações usam POST em `/api/erratas/por-dia` (campos `data` e `dados`) ou
+`/api/erratas/com-host` (CSV), com `Authorization: Bearer` e o token exclusivo
+`security.errataImportToken`. Não aceitam gravação por GET nem o token RVTools.
+A Debug Toolbar não coleta essas requisições. Importações pela interface usam CSRF.
+
+Os arquivos ficam no volume `writable/erratas`, fora do Git e do diretório público.
+Atualizações usam bloqueio e troca atômica, preservam datas anteriores e não
+duplicam reenvios do mesmo horário/host. Arquivos inválidos são recusados sem
+alterar o histórico. Cada fonte admite até 10 MiB e 50 mil registros; volumes
+maiores por host exigirão uma evolução para tabelas próprias. Não há migration
+ou alteração de dados do PostgreSQL nesta implementação.
+O coletor por host real ainda deve ser fornecido pelo Satellite. Consulte o
+[guia de formatos, coleta e instalação](controle-de-erratas.md).
+
 ## Sistema operacional efetivo
 
 O sistema mantém separadas três informações:

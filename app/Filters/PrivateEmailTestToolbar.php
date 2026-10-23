@@ -12,7 +12,8 @@ class PrivateEmailTestToolbar extends DebugToolbar
     {
         $path = trim($request->getUri()->getPath(), '/');
         if (ENVIRONMENT !== 'development'
-            || preg_match('~(?:^|/)(?:tools|admin)/email-test(?:/|$)~', $path)) {
+            || preg_match('~(?:^|/)(?:tools|admin)/email-test(?:/|$)~', $path)
+            || preg_match('~(?:^|/)api/erratas(?:/|$)~', $path)) {
             return null;
         }
         return parent::after($request, $response, $arguments);

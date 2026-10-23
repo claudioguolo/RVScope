@@ -80,6 +80,16 @@ $routes->group('admin/email-test', ['filter' => 'role:admin'], static function (
     $routes->post('', 'EmailTestController::saveSettings', ['filter' => 'csrf']);
 });
 $routes->get('graficos', 'ChartController::index', ['filter' => 'authenticatedReports']);
+$routes->group('erratas', ['filter' => 'authenticatedReports'], static function ($routes) {
+    $routes->get('por-dia', 'ErrataController::daily');
+    $routes->get('com-host', 'ErrataController::hosts');
+});
+$routes->group('admin/erratas', ['filter' => 'role:admin'], static function ($routes) {
+    $routes->get('', 'ErrataController::sources');
+    $routes->post('', 'ErrataController::import', ['filter' => 'csrf']);
+});
+$routes->post('api/erratas/por-dia', 'ErrataController::collect', ['filter' => 'importToken:erratas']);
+$routes->post('api/erratas/com-host', 'ErrataController::collectHosts', ['filter' => 'importToken:erratas']);
 $routes->group('import', ['filter' => 'role:editor,admin'], static function ($routes) {
     $routes->get('', 'ImportController::form');
     $routes->post('', 'ImportController::index', ['filter' => 'csrf']);

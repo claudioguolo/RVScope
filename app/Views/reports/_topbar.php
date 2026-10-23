@@ -156,6 +156,14 @@ $breadcrumbs = $breadcrumbs ?? [
             <?php if ($isAuthenticated): ?>
                 <li class="nav-item"><a class="nav-link <?= $activeMenu === 'email-test' ? 'active' : '' ?>" href="<?= site_url('tools/email-test') ?>">Teste de e-mail</a></li>
             <?php endif; ?>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle <?= $activeMenu === 'erratas' ? 'active' : '' ?>"
+                   href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Controle de Erratas</a>
+                <ul class="dropdown-menu app-menu-dropdown">
+                    <li><a class="dropdown-item <?= $activeSubmenu === 'erratas-dia' ? 'active' : '' ?>" href="<?= site_url('erratas/por-dia') ?>">Erratas por Dia</a></li>
+                    <li><a class="dropdown-item <?= $activeSubmenu === 'erratas-host' ? 'active' : '' ?>" href="<?= site_url('erratas/com-host') ?>">Erratas com Host</a></li>
+                </ul>
+            </li>
         </ul>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb mb-0">
