@@ -64,7 +64,7 @@
                 <div class="col-12"><button class="btn btn-brand" type="submit">Salvar configuração</button> <a href="<?= site_url('admin/users') ?>" class="btn btn-outline-secondary">Voltar à administração</a></div>
             </form>
         <?php else: ?>
-            <p>Escolha o teste rápido com a conta exclusiva cadastrada ou teste uma conta específica. A mensagem é definida pelo administrador.</p>
+            <p>Escolha o teste rápido com os padrões cadastrados ou personalize a conta de envio e os destinatários separadamente. A mensagem é definida pelo administrador.</p>
             <p><strong>Destinatários padrão:</strong> <?= esc($configuration['recipients'] ?: 'Ainda não configurados pelo administrador.') ?></p>
             <form id="email-test-form" method="post" action="<?= site_url('tools/email-test') ?>" autocomplete="off" class="row g-3">
                 <?= csrf_field() ?>
@@ -73,14 +73,30 @@
                     <button id="quick-button" type="submit" class="btn btn-brand mt-2">Teste Rápido</button>
                 </div>
                 <div class="col-12">
-                    <div class="form-check"><input class="form-check-input" type="radio" name="mode" id="mode-custom" value="custom"><label class="form-check-label fw-semibold" for="mode-custom">Teste com usuário e senha alternativos</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" name="mode" id="mode-custom" value="custom"><label class="form-check-label fw-semibold" for="mode-custom">Teste personalizado</label></div>
                 </div>
                 <fieldset id="custom-fields" class="col-12" disabled>
-                    <div class="row g-3">
-                        <div class="col-md-6"><label for="username" class="form-label">Conta alternativa</label><div class="input-group"><input id="username" name="username" maxlength="64" autocomplete="off" class="form-control" required><span class="input-group-text">@<?= esc($domain) ?></span></div><div class="form-text">Informe somente o nome da conta. Ela será usada para autenticação e como remetente.</div></div>
-                        <div class="col-md-6"><label for="password" class="form-label">Senha da conta alternativa</label><input id="password" name="password" type="password" maxlength="4096" autocomplete="new-password" class="form-control" required></div>
-                        <div class="col-12"><label for="custom_recipients" class="form-label">Destinatário personalizado (opcional)</label><textarea id="custom_recipients" name="custom_recipients" maxlength="6000" class="form-control"></textarea><div class="form-text">Deixe vazio para usar os destinatários padrão. Se preenchido, o envio será feito somente para os endereços informados. Até 20 endereços, separados por vírgula, ponto e vírgula ou linha.</div></div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="use-custom-account" name="use_custom_account" value="1" aria-controls="custom-account-fields" aria-describedby="custom-account-help">
+                        <label class="form-check-label fw-semibold" for="use-custom-account">Usar usuário e senha personalizados</label>
+                        <div class="form-text" id="custom-account-help">Desmarcado: usa a conta e a senha padrão de testes.</div>
                     </div>
+                    <fieldset id="custom-account-fields" class="mb-3" disabled>
+                        <legend class="visually-hidden">Credenciais personalizadas</legend>
+                        <div class="row g-3">
+                            <div class="col-md-6"><label for="username" class="form-label">Conta alternativa</label><div class="input-group"><input id="username" name="username" maxlength="64" autocomplete="off" class="form-control" required><span class="input-group-text">@<?= esc($domain) ?></span></div><div class="form-text">Informe somente o nome da conta. Ela será usada para autenticação e como remetente.</div></div>
+                            <div class="col-md-6"><label for="password" class="form-label">Senha da conta alternativa</label><input id="password" name="password" type="password" maxlength="4096" autocomplete="new-password" class="form-control" required></div>
+                        </div>
+                    </fieldset>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="use-custom-recipients" name="use_custom_recipients" value="1" aria-controls="custom-recipient-fields" aria-describedby="custom-recipient-help">
+                        <label class="form-check-label fw-semibold" for="use-custom-recipients">Usar destinatário personalizado</label>
+                        <div class="form-text" id="custom-recipient-help">Desmarcado: usa os destinatários padrão, mesmo com credenciais personalizadas.</div>
+                    </div>
+                    <fieldset id="custom-recipient-fields" disabled>
+                        <legend class="visually-hidden">Destinatários personalizados</legend>
+                        <label for="custom_recipients" class="form-label">Destinatário personalizado</label><textarea id="custom_recipients" name="custom_recipients" maxlength="6000" class="form-control" required></textarea><div class="form-text">O envio será feito somente para os endereços informados. Até 20 endereços, separados por vírgula, ponto e vírgula ou linha.</div>
+                    </fieldset>
                 </fieldset>
                 <div class="col-12"><button id="custom-button" type="submit" class="btn btn-brand" disabled>Teste Personalizado</button></div>
             </form>
@@ -114,15 +130,21 @@
     if (!form) return;
     const custom = document.getElementById('mode-custom');
     const fields = document.getElementById('custom-fields');
+    const customAccount = document.getElementById('use-custom-account');
+    const customRecipients = document.getElementById('use-custom-recipients');
+    const accountFields = document.getElementById('custom-account-fields');
+    const recipientFields = document.getElementById('custom-recipient-fields');
     const update = () => {
         fields.disabled = !custom.checked;
         document.getElementById('quick-button').disabled = custom.checked;
         document.getElementById('custom-button').disabled = !custom.checked;
-        if (!custom.checked) {
-            fields.querySelectorAll('input, textarea').forEach(field => { field.value = ''; });
-        }
+        accountFields.disabled = !custom.checked || !customAccount.checked;
+        recipientFields.disabled = !custom.checked || !customRecipients.checked;
+        [accountFields, recipientFields].forEach(group => {
+            if (group.disabled) group.querySelectorAll('input, textarea').forEach(field => { field.value = ''; });
+        });
     };
-    form.querySelectorAll('input[name="mode"]').forEach(radio => radio.addEventListener('change', update));
+    form.querySelectorAll('input[name="mode"], #use-custom-account, #use-custom-recipients').forEach(control => control.addEventListener('change', update));
     window.addEventListener('pageshow', update);
     update();
 })();

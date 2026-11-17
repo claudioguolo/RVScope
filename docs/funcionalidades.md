@@ -164,14 +164,26 @@ O teste rápido vem
 selecionado e habilita somente o botão **Teste Rápido**. Ignora quaisquer campos
 alternativos enviados diretamente ao backend.
 
-Ao selecionar o outro rádio, o botão rápido é desabilitado e são habilitados
-conta, senha, destinatário personalizado e botão **Teste Personalizado**.
+Ao selecionar **Teste personalizado**, o botão rápido é desabilitado e o botão
+**Teste Personalizado** é habilitado. Desde a versão 1.5.5, dois checkboxes
+independentes controlam os dados temporários:
+
+- **Usar usuário e senha personalizados:** exige a conta e a senha alternativas;
+  desmarcado, mantém a conta e a senha padrão dos testes.
+- **Usar destinatário personalizado:** exige ao menos um destinatário e substitui
+  os destinatários padrão; desmarcado, mantém os destinos cadastrados.
+
+É possível marcar somente um, ambos ou nenhum (usa ambos os padrões). Os campos
+não selecionados são desabilitados e limpos na interface e ignorados pelo backend,
+mesmo quando enviados diretamente. Marcar somente destinatário não exige senha
+alternativa; marcar somente credenciais mantém os destinatários padrão.
 O usuário informa somente o nome da conta: o sufixo é definido pela configuração
 `emailTest.domain` do ambiente e validado também no backend. O domínio é exibido
 automaticamente nos formulários administrativo e personalizado. A conta completa
 é usada como SMTP USER e FROM.
-A senha é obrigatória no modo personalizado. O destino opcional substitui os
-destinatários padrão; vazio usa os padrão. Aceita até 20 endereços únicos.
+A senha é obrigatória apenas quando o checkbox de credenciais estiver marcado.
+Destinatário personalizado marcado com campo vazio gera erro; desmarcado, usa os
+padrão. Aceita até 20 endereços únicos.
 Os dados temporários não são persistidos nem repopulados após o envio.
 O intervalo entre tentativas é configurável pelo administrador, com padrão de
 60 segundos por usuário. A opção **Intervalo entre testes (segundos)** aceita
@@ -312,12 +324,14 @@ continua editável por Editor/Administrador, assim como os demais dados
 complementares. Usuário comum permanece sem botão Salvar e com campos
 complementares desabilitados. A alteração não exige migrations.
 
-## Segurança dos Hosts (v1.5.3)
+## Segurança dos Hosts (v1.5.4)
 
 Coleta autenticada de SELinux e firewalld pelo Satellite, com histórico diário,
-busca, accordion por data e detalhes da própria coleta. Exibe todos os hosts
+busca, accordion por data e detalhes da própria coleta. Por padrão, exibe todos os hosts
 recebidos, independentemente do RVTools, Hammer e dos filtros dos demais relatórios.
 Inclui totais, percentuais e gráficos de barras por status de SELinux e firewalld,
 considerando todos os hosts da data e busca selecionadas, antes da paginação.
 Duplicidades por hostname ou IP usam somente o registro mais recente de cada dia.
+Administradores podem ativar o vínculo com o inventário RVTools da mesma data;
+o modo independente continua sendo o padrão.
 Configuração e job template: [guia de coleta de segurança](coleta-seguranca-hosts.md).

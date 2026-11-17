@@ -47,27 +47,46 @@ final class EmailTestRequest
 
     public static function resolve(array $input, string $defaults): array
     {
-        $mode = (string) ($input['mode'] ?? '');
-        if (! in_array($mode, ['quick', 'custom'], true)) {
+        $mode = $input['mode'] ?? '';
+        if (! is_string($mode) || ! in_array($mode, ['quick', 'custom'], true)) {
             throw new InvalidArgumentException('Selecione Teste Rápido ou Teste Personalizado.');
         }
-        $recipients = EmailTestRecipients::parse($defaults);
+        $customAccount = $mode === 'custom' && self::selected($input, 'use_custom_account');
+        $customRecipients = $mode === 'custom' && self::selected($input, 'use_custom_recipients');
+        $recipientInput = $customRecipients ? self::text($input, 'custom_recipients') : $defaults;
+        $recipients = EmailTestRecipients::parse($recipientInput);
         if ($recipients === []) {
-            throw new InvalidArgumentException('Solicite ao administrador o cadastro dos destinatários padrão.');
+            throw new InvalidArgumentException($customRecipients
+                ? 'Informe pelo menos um destinatário personalizado.'
+                : 'Solicite ao administrador o cadastro dos destinatários padrão.');
         }
         $account = null;
-        if ($mode === 'custom') {
-            $username = self::account((string) ($input['username'] ?? ''));
-            $password = (string) ($input['password'] ?? '');
+        if ($customAccount) {
+            $username = self::account(self::text($input, 'username'));
+            $password = self::text($input, 'password');
             if ($password === '' || strlen($password) > 4096) {
                 throw new InvalidArgumentException('Informe a senha da conta alternativa.');
             }
             $account = ['username' => $username, 'password' => $password];
-            $customRecipients = trim((string) ($input['custom_recipients'] ?? ''));
-            if ($customRecipients !== '') {
-                $recipients = EmailTestRecipients::parse($customRecipients);
-            }
         }
         return ['recipients' => $recipients, 'account' => $account];
+    }
+
+    private static function selected(array $input, string $key): bool
+    {
+        $value = $input[$key] ?? '0';
+        if (! is_string($value) || ! in_array($value, ['0', '1'], true)) {
+            throw new InvalidArgumentException('Selecione opções válidas para o teste personalizado.');
+        }
+        return $value === '1';
+    }
+
+    private static function text(array $input, string $key): string
+    {
+        $value = $input[$key] ?? '';
+        if (! is_string($value)) {
+            throw new InvalidArgumentException('Informe valores válidos para o teste personalizado.');
+        }
+        return $value;
     }
 }

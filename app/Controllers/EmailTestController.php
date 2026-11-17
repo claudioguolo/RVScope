@@ -94,6 +94,8 @@ class EmailTestController extends Controller
             $configuration = (new AppSettingModel())->emailTestConfiguration();
             $resolved = EmailTestRequest::resolve([
                 'mode' => $this->request->getPost('mode'),
+                'use_custom_account' => $this->request->getPost('use_custom_account'),
+                'use_custom_recipients' => $this->request->getPost('use_custom_recipients'),
                 'username' => $this->request->getPost('username'),
                 'password' => $this->request->getPost('password'),
                 'custom_recipients' => $this->request->getPost('custom_recipients'),

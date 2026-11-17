@@ -39,10 +39,14 @@ final class HostSecurityCollection
         return $record;
     }
 
-    /** Consulta exclusivamente os registros recebidos pela coleta de segurança. */
-    public function report(array $records, string $term = ''): array
+    /** Inventário null mantém a consulta independente; array vazio não vincula nenhum host. */
+    public function report(array $records, string $term = '', ?array $inventory = null): array
     {
-        $rows = array_values(array_filter($this->latestPerDay($records), static fn ($record) => $term === ''
+        $records = $this->latestPerDay($records);
+        if ($inventory !== null) {
+            $records = (new HostSecurityInventoryLinker())->link($records, $inventory);
+        }
+        $rows = array_values(array_filter($records, static fn ($record) => $term === ''
             || mb_stripos($record['hostname'] . ' ' . ($record['ip'] ?? ''), $term) !== false));
         usort($rows, static fn ($a, $b) => strcasecmp($a['hostname'], $b['hostname']));
         return ['rows' => $rows, 'summary' => [

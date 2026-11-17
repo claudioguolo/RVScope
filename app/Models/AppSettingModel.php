@@ -7,6 +7,7 @@ use Throwable;
 
 class AppSettingModel extends Model
 {
+    public const HOST_SECURITY_LINK_RVTOOLS_KEY = 'host_security_link_rvtools';
     public const AUTHENTICATED_REPORTS_KEY = 'authenticated_reports_enabled';
     public const AD_ENABLED_KEY = 'ad_enabled';
     public const AD_HOST_KEY = 'ad_host';
@@ -32,6 +33,21 @@ class AppSettingModel extends Model
         'setting_value',
         'updated_at',
     ];
+
+    public function hostSecurityLinkedToRvtools(): bool
+    {
+        return $this->boolValue(self::HOST_SECURITY_LINK_RVTOOLS_KEY);
+    }
+
+    public function setHostSecurityLinkedToRvtools(bool $enabled): void
+    {
+        $this->db->transStart();
+        $this->setValue(self::HOST_SECURITY_LINK_RVTOOLS_KEY, $enabled ? '1' : '0');
+        $this->db->transComplete();
+        if (! $this->db->transStatus()) {
+            throw new \RuntimeException('Não foi possível salvar o vínculo da coleta de segurança.');
+        }
+    }
 
     public function authenticatedReportsEnabled(): bool
     {

@@ -380,9 +380,11 @@ docker compose down
 
 Usuários autenticados acessam **Teste de e-mail** em dois modos: **Teste Rápido**,
 selecionado por padrão, usa a conta exclusiva de testes e os destinatários
-cadastrados; **Teste Personalizado** usa conta e senha temporárias, com origem
-restrita ao domínio definido em `emailTest.domain` no `.env`, e destino opcional
-que substitui os padrão.
+cadastrados; **Teste Personalizado** oferece checkboxes independentes para
+credenciais e destinatários (v1.5.5). É possível personalizar somente usuário e
+senha, somente destinatários ou ambos; opções desmarcadas mantêm os padrões.
+A conta alternativa é restrita ao domínio definido em `emailTest.domain` no `.env`.
+Destinatários personalizados substituem os padrão.
 Administradores cadastram a conta exclusiva, senha criptografada, destinatários,
 assunto e texto em **Usuários e configurações → Configurar teste de e-mail**.
 A conta de notificações permanece independente. O servidor é compartilhado;
@@ -448,12 +450,14 @@ Se o diretório `/etc/ssl/private` bloquear o acesso do PHP, consulte a
 [montagem separada da CA pública](docs/smtp-carbonio-starttls.md#erro-permission-denied-ao-acessar-a-ca)
 em `/etc/ssl/certs/rvscope-smtp-ca.crt` e ajuste `smtp.caFile` para esse caminho.
 
-## Segurança dos Hosts (v1.5.3)
+## Segurança dos Hosts (v1.5.4)
 
 Coleta autenticada de SELinux e firewalld pelo Satellite, com histórico diário,
-busca, accordion por data e detalhes da própria coleta. Exibe todos os hosts
+busca, accordion por data e detalhes da própria coleta. Por padrão, exibe todos os hosts
 recebidos, independentemente do RVTools, Hammer e dos filtros dos demais relatórios.
 Inclui totais, percentuais e gráficos de barras por status de SELinux e firewalld,
 considerando todos os hosts da data e busca selecionadas, antes da paginação.
 Duplicidades por hostname ou IP usam somente o registro mais recente de cada dia.
+Administradores podem ativar o vínculo com o inventário RVTools da mesma data;
+o modo independente continua sendo o padrão.
 Configuração e job template: [guia de coleta de segurança](docs/coleta-seguranca-hosts.md).

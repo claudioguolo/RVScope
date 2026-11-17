@@ -1,9 +1,10 @@
-# Coleta de segurança dos hosts (v1.5.3)
+# Coleta de segurança dos hosts (v1.5.4)
 
 O menu **Segurança dos Hosts** apresenta SELinux e firewalld recebidos dos hosts
 pelo Satellite, com busca, accordion por data, paginação de 50 hosts e o modal
 de detalhes da própria coleta, em modo de consulta. Desde a versão 1.5.1, a
-coleta e o relatório são independentes do RVTools, Hammer e das demais coletas.
+coleta e o relatório são independentes por padrão. Na versão 1.5.4, o
+administrador pode ativar o vínculo dos relatórios ao inventário RVTools.
 Respeita a configuração de autenticação dos relatórios; somente administradores
 acessam **Configurar coleta**.
 
@@ -74,7 +75,7 @@ Os JSONs ficam fora do diretório público em `writable/host-security/YYYY-MM-DD
 limitados a 10 MiB por dia. Inclua esse diretório no backup do volume writable.
 Históricos corrompidos impedem gravação e devem ser recuperados do backup.
 
-O relatório lê diretamente os arquivos da coleta de segurança e exibe todos os
+No modo independente, o relatório lê os arquivos da coleta de segurança e exibe todos os
 hostnames recebidos na data selecionada, mesmo sem inventário RVTools ou coleta
 Hammer nessa data. Por solicitação operacional, este relatório não aplica os
 filtros de VM ligada ou sistema operacional configurados para os demais relatórios.
@@ -106,7 +107,7 @@ O percentual de cada status é sua quantidade dividida pelo total de hosts
 filtrados, multiplicada por 100. Exibe uma casa decimal; a soma pode diferir de
 100% por arredondamento. Sem hosts, todos os indicadores são zero. Os gráficos
 usam os mesmos valores das quantidades e funcionam sem biblioteca externa de
-gráficos. A coleta permanece independente de RVTools e Hammer.
+gráficos. Os indicadores respeitam o modo de vínculo configurado na administração.
 
 ## Duplicidades por dia (v1.5.3)
 
@@ -130,3 +131,31 @@ coletas antigas e jobs anteriores continuam aceitos e são comparados por hostna
 Para eliminar duplicidades também por IP, atualize o job e execute uma nova coleta.
 A busca pelo hostname ou IP é aplicada após a consolidação, sem recuperar estados
 antigos descartados do relatório.
+
+## Vínculo opcional com o RVTools (v1.5.4)
+
+Acesse **Usuários e configurações → Coleta de segurança dos hosts** ou
+**Segurança dos Hosts → Configurar coleta**. Somente administradores podem salvar
+a opção **Vincular relatórios de segurança ao inventário RVTools**. O formulário
+usa CSRF e informa sucesso ou falha. A preferência é persistida na tabela existente
+`app_settings`, na chave `host_security_link_rvtools`, sem mudança de estrutura
+ou necessidade de migration.
+
+- **Desativado (padrão):** mantém o modo independente, mostrando todos os hosts
+  recebidos após a consolidação diária de duplicidades.
+- **Ativado:** associa as coletas ao RVTools da mesma data UTC. Exibe somente
+  vínculos únicos com VMs `poweredOn` e `included_in_reports`, conforme a política
+  de sistemas operacionais. Totais, percentuais, gráficos e paginação usam apenas
+  esses hosts. A tabela mostra também o nome da VM vinculada.
+
+A associação usa o hostname normalizado contra VM/DNS e, quando enviado, o IP
+contra o IP primário do inventário. Nome curto só vincula se for único; conflitos
+entre nome e IP ou múltiplas candidatas não aparecem. A associação considera
+inclusive VMs excluídas para detectar ambiguidades. Se duas coletas distintas
+apontarem para a mesma VM, prevalece o estado mais recente.
+
+Sem inventário na data selecionada, o modo vinculado informa o motivo e mostra
+zero hosts; não retorna automaticamente ao modo independente. Desativar a opção
+restaura a consulta de todos os hosts recebidos, sem nova coleta. Alterar o vínculo
+não modifica os arquivos nem bloqueia o recebimento de hosts sem correspondência.
+O token, o endpoint, a autenticação e os papéis existentes permanecem os mesmos.

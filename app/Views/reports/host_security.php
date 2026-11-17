@@ -11,7 +11,7 @@ $parameters = ['date' => $date, 'q' => $term];
 <div class="app-card p-4 mb-4">
     <div class="d-flex flex-wrap justify-content-between gap-3"><h1 class="h4">Segurança dos Hosts</h1>
     <?php if (\App\Libraries\UserAuthorization::canAdminister()): ?><a class="btn btn-outline-secondary" href="<?= site_url('admin/coletas/seguranca') ?>">Configurar coleta</a><?php endif; ?></div>
-    <p class="text-secondary">Último registro por hostname ou IP de cada dia (UTC), independente das demais coletas do RVScope.</p>
+    <p class="text-secondary">Último registro por hostname ou IP de cada dia (UTC). <?= $linkedToRvtools ? 'Vinculado ao inventário RVTools da mesma data: somente VMs ligadas e incluídas nos relatórios.' : 'Modo independente: todos os hosts recebidos.' ?></p>
     <form method="get" action="<?= site_url('reports/seguranca-hosts') ?>" class="row g-3 align-items-end">
         <div class="col-md-5"><label class="form-label" for="q">Hostname ou IP</label><input class="form-control" id="q" name="q" type="search" maxlength="254" value="<?= esc($term, 'attr') ?>"></div>
         <div class="col-md-4"><label class="form-label" for="date">Data da coleta (UTC)</label><select class="form-select" id="date" name="date"><?php foreach ($dates as $day): ?><option value="<?= esc($day, 'attr') ?>" <?= $day === $date ? 'selected' : '' ?>><?= esc(date('d/m/Y', strtotime($day))) ?></option><?php endforeach; ?></select></div>
@@ -23,6 +23,7 @@ $parameters = ['date' => $date, 'q' => $term];
 <?php else: ?>
 <div class="app-card p-4">
     <h2 class="h5"><?= (int) $total ?> host(s) encontrado(s)</h2>
+    <?php if ($linkedToRvtools && ! $hasInventory): ?><div class="alert alert-info">O vínculo com o RVTools está ativado, mas não há inventário para esta data. Importe o inventário da mesma data ou desative o vínculo na administração. As coletas de segurança recebidas continuam preservadas.</div><?php endif; ?>
     <p class="small text-secondary">Totais da data selecionada e da busca atual, considerando todas as páginas. Percentuais sobre <?= (int) $total ?> host(s); o arredondamento pode fazer a soma diferir de 100%.</p>
     <div class="row g-3 mb-4">
         <div class="col-lg-6"><?= view('reports/_host_security_summary', ['title' => 'SELinux', 'statuses' => $result['summary']['sestatus']]) ?></div>
@@ -36,9 +37,9 @@ $parameters = ['date' => $date, 'q' => $term];
             <?php if (! $selected): ?><a class="btn btn-outline-secondary" href="<?= esc(site_url('reports/seguranca-hosts?' . http_build_query(['date' => $day, 'q' => $term])), 'attr') ?>">Consultar esta data</a>
             <?php elseif ($result['rows'] === []): ?><p class="mb-0">Nenhum host corresponde à busca nesta data.</p>
             <?php else: ?>
-                <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Hostname coletado</th><th>IP coletado</th><th>SELinux</th><th>firewalld</th><th>Coleta UTC</th><th>Detalhes</th></tr></thead><tbody>
+                <div class="table-responsive"><table class="table table-striped align-middle"><thead><tr><th>Hostname coletado</th><?php if ($linkedToRvtools): ?><th>VM RVTools</th><?php endif; ?><th>IP coletado</th><th>SELinux</th><th>firewalld</th><th>Coleta UTC</th><th>Detalhes</th></tr></thead><tbody>
                 <?php foreach ($result['rows'] as $collection): ?>
-                    <tr><td><?= esc($collection['hostname']) ?></td><td><?= esc(($collection['ip'] ?? '') ?: '—') ?></td><td><?= esc($collection['sestatus']) ?></td><td><?= esc($collection['firewall']) ?></td><td class="text-nowrap"><?= esc(substr($collection['collected_at'], 11)) ?></td>
+                    <tr><td><?= esc($collection['hostname']) ?></td><?php if ($linkedToRvtools): ?><td><?= esc($collection['inventory_vm']) ?></td><?php endif; ?><td><?= esc(($collection['ip'] ?? '') ?: '—') ?></td><td><?= esc($collection['sestatus']) ?></td><td><?= esc($collection['firewall']) ?></td><td class="text-nowrap"><?= esc(substr($collection['collected_at'], 11)) ?></td>
                         <td><button class="btn btn-brand btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#securityDetailModal"
                             data-hostname="<?= esc($collection['hostname'], 'attr') ?>" data-ip="<?= esc($collection['ip'] ?? '', 'attr') ?>" data-sestatus="<?= esc($collection['sestatus'], 'attr') ?>"
                             data-firewall="<?= esc($collection['firewall'], 'attr') ?>" data-collected-at="<?= esc($collection['collected_at'], 'attr') ?>">Detalhes</button></td></tr>
