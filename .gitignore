@@ -19,3 +19,6 @@ arquivos_csv.tar.gz
 
 # compose exclusivo do ambiente de desenvolvimento local
 docker-compose.dev.yaml
+
+# Script exclusivo de envio local ao GitHub
+/enviar-github.sh
