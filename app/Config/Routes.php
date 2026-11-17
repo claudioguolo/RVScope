@@ -94,6 +94,9 @@ $routes->group('import', ['filter' => 'role:editor,admin'], static function ($ro
     $routes->get('', 'ImportController::form');
     $routes->post('', 'ImportController::index', ['filter' => 'csrf']);
 });
+$routes->get('admin/coletas/seguranca', 'HostSecurityController::settings', ['filter' => 'role:admin']);
+$routes->get('reports/seguranca-hosts', 'HostSecurityController::index', ['filter' => 'authenticatedReports']);
+$routes->post('api/coletas/seguranca', 'HostSecurityController::collect', ['filter' => 'importToken:hostSecurity']);
 $routes->post('api/import', 'ImportController::api', ['filter' => 'importToken']);
 
 if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {

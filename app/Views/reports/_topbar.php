@@ -164,6 +164,7 @@ $breadcrumbs = $breadcrumbs ?? [
                     <li><a class="dropdown-item <?= $activeSubmenu === 'erratas-host' ? 'active' : '' ?>" href="<?= site_url('erratas/com-host') ?>">Erratas com Host</a></li>
                 </ul>
             </li>
+            <li class="nav-item"><a class="nav-link <?= $activeMenu === 'host-security' ? 'active' : '' ?>" href="<?= site_url('reports/seguranca-hosts') ?>">Segurança dos Hosts</a></li>
         </ul>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb app-breadcrumb mb-0">

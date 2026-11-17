@@ -311,3 +311,9 @@ A criação importada fica separada de **Criação — registro complementar**, 
 continua editável por Editor/Administrador, assim como os demais dados
 complementares. Usuário comum permanece sem botão Salvar e com campos
 complementares desabilitados. A alteração não exige migrations.
+
+## Segurança dos Hosts (v1.5.0)
+
+Coleta autenticada de SELinux e firewalld pelo Satellite, com histórico diário,
+busca, accordion por data e detalhes das VMs conforme os critérios do RVTools.
+Configuração e job template: [guia de coleta de segurança](coleta-seguranca-hosts.md).

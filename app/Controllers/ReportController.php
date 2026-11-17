@@ -38,7 +38,8 @@ class ReportController extends Controller
         $returnTo = trim((string) ($this->request->getPost('return_to') ?? ''));
         if (! str_starts_with($returnTo, 'reports/personalizado/detail?')
             && ! str_starts_with($returnTo, 'reports/buscar?')
-            && ! str_starts_with($returnTo, 'erratas/com-host?')) {
+            && ! str_starts_with($returnTo, 'erratas/com-host?')
+            && ! str_starts_with($returnTo, 'reports/seguranca-hosts?')) {
             $returnTo = 'reports/personalizado';
         }
 
