@@ -448,8 +448,12 @@ Se o diretório `/etc/ssl/private` bloquear o acesso do PHP, consulte a
 [montagem separada da CA pública](docs/smtp-carbonio-starttls.md#erro-permission-denied-ao-acessar-a-ca)
 em `/etc/ssl/certs/rvscope-smtp-ca.crt` e ajuste `smtp.caFile` para esse caminho.
 
-## Segurança dos Hosts (v1.5.0)
+## Segurança dos Hosts (v1.5.3)
 
 Coleta autenticada de SELinux e firewalld pelo Satellite, com histórico diário,
-busca, accordion por data e detalhes das VMs conforme os critérios do RVTools.
+busca, accordion por data e detalhes da própria coleta. Exibe todos os hosts
+recebidos, independentemente do RVTools, Hammer e dos filtros dos demais relatórios.
+Inclui totais, percentuais e gráficos de barras por status de SELinux e firewalld,
+considerando todos os hosts da data e busca selecionadas, antes da paginação.
+Duplicidades por hostname ou IP usam somente o registro mais recente de cada dia.
 Configuração e job template: [guia de coleta de segurança](docs/coleta-seguranca-hosts.md).

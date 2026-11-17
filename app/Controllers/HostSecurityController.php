@@ -2,10 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Libraries\HostDetailData;
 use App\Libraries\HostSecurityCollection;
 use App\Libraries\HostSecurityStore;
-use App\Models\RvtoolsVmInventoryModel;
 use CodeIgniter\Controller;
 use InvalidArgumentException;
 use Throwable;
@@ -39,10 +37,10 @@ class HostSecurityController extends Controller
 
     public function index()
     {
-        $dates = $inventory = [];
+        $dates = [];
         $date = $term = '';
         $error = null;
-        $result = ['rows' => [], 'unmatched' => 0, 'ambiguous' => 0, 'excluded' => 0];
+        $result = (new HostSecurityCollection())->report([]);
         try {
             $store = new HostSecurityStore();
             $dates = $store->dates();
@@ -53,24 +51,19 @@ class HostSecurityController extends Controller
             }
             $term = trim($term);
             if ($date !== '') {
-                $inventory = (new RvtoolsVmInventoryModel())->where('reference_date', $date)
-                    ->select('vm, dns_name, primary_ip, os_name, os_name_raw, creation_date_raw, annotation, power_state, included_in_reports')->findAll();
-                $result = (new HostSecurityCollection())->report($store->read($date), $inventory, $term);
+                $result = (new HostSecurityCollection())->report($store->read($date), $term);
             }
         } catch (InvalidArgumentException $exception) {
             $error = $exception->getMessage();
             $date = $term = '';
         } catch (Throwable $exception) {
-            $error = 'Não foi possível consultar a coleta. Confira o inventário e as permissões do volume writable.';
+            $error = 'Não foi possível consultar a coleta. Confira as permissões do volume writable.';
         }
         $total = count($result['rows']);
         $pages = max(1, (int) ceil($total / 50));
         $requestedPage = $this->request->getGet('page');
         $page = min($pages, max(1, is_scalar($requestedPage) ? (int) $requestedPage : 1));
-        $details = new HostDetailData();
-        $result['rows'] = $details->enrich(array_slice($result['rows'], ($page - 1) * 50, 50));
-        $catalogs = $result['rows'] === [] ? ['managementUnits' => [], 'technicalResponsiblesByManagementUnit' => [], 'operatingSystems' => []] : $details->catalogs();
-        return view('reports/host_security', compact('dates', 'date', 'term', 'error', 'result', 'total', 'page', 'pages') + $catalogs
-            + ['hasInventory' => $inventory !== [], 'alert' => session()->getFlashdata('hostInfoAlert')]);
+        $result['rows'] = array_slice($result['rows'], ($page - 1) * 50, 50);
+        return view('reports/host_security', compact('dates', 'date', 'term', 'error', 'result', 'total', 'page', 'pages'));
     }
 }

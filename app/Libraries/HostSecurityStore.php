@@ -80,8 +80,13 @@ final class HostSecurityStore
             if (! flock($lock, LOCK_EX)) {
                 throw new RuntimeException('Não foi possível bloquear o histórico.');
             }
-            $records = array_column($this->read($date), null, 'hostname');
-            $records[$record['hostname']] = $record;
+            $records = [];
+            foreach ([...$this->read($date), $record] as $candidate) {
+                $hostname = strtolower(rtrim(trim($candidate['hostname']), '.'));
+                if (! isset($records[$hostname]) || $records[$hostname]['collected_at'] <= $candidate['collected_at']) {
+                    $records[$hostname] = $candidate;
+                }
+            }
             ksort($records);
             $output = json_encode(array_values($records), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT);
             if (strlen($output) > 10 * 1024 * 1024) {

@@ -28,45 +28,81 @@ final class HostSecurityCollection
             || ! in_array($firewall, ['active', 'inactive', 'failed', 'activating', 'deactivating', 'reloading', 'maintenance', 'refreshing', 'not-found', 'unknown'], true)) {
             throw new InvalidArgumentException('Estado de SELinux ou firewalld inválido. Use unknown quando não for possível consultar.');
         }
-        return ['hostname' => $hostname, 'sestatus' => $selinux, 'firewall' => $firewall];
+        $record = ['hostname' => $hostname, 'sestatus' => $selinux, 'firewall' => $firewall];
+        if (array_key_exists('ip', $input)) {
+            if (! is_string($input['ip']) || (trim($input['ip']) !== '' && ! filter_var(trim($input['ip']), FILTER_VALIDATE_IP))) {
+                throw new InvalidArgumentException('Informe um único IP válido (IPv4 ou IPv6).');
+            }
+            $ip = trim($input['ip']);
+            $record['ip'] = $ip === '' ? '' : inet_ntop(inet_pton($ip));
+        }
+        return $record;
     }
 
-    /** Não associa nomes curtos quando há mais de uma VM candidata. */
-    public function report(array $records, array $inventory, string $term = ''): array
+    /** Consulta exclusivamente os registros recebidos pela coleta de segurança. */
+    public function report(array $records, string $term = ''): array
     {
-        $index = [];
-        foreach ($inventory as $position => $vm) {
-            foreach (['vm', 'dns_name'] as $field) {
-                $name = strtolower(rtrim(trim((string) ($vm[$field] ?? '')), '.'));
-                if ($name !== '') {
-                    $index[$name][$position] = true;
-                    $index[explode('.', $name)[0]][$position] = true;
+        $rows = array_values(array_filter($this->latestPerDay($records), static fn ($record) => $term === ''
+            || mb_stripos($record['hostname'] . ' ' . ($record['ip'] ?? ''), $term) !== false));
+        usort($rows, static fn ($a, $b) => strcasecmp($a['hostname'], $b['hostname']));
+        return ['rows' => $rows, 'summary' => [
+            'sestatus' => $this->summarize($rows, 'sestatus', ['enforcing', 'permissive', 'disabled', 'unknown']),
+            'firewall' => $this->summarize($rows, 'firewall', ['active', 'inactive', 'failed', 'unknown']),
+        ]];
+    }
+
+    /** Agrupa vínculos por hostname ou IP no mesmo dia e mantém o registro mais recente. */
+    private function latestPerDay(array $records): array
+    {
+        $parents = $identities = [];
+        $find = static function (int $position) use (&$parents): int {
+            while ($parents[$position] !== $position) {
+                $parents[$position] = $parents[$parents[$position]];
+                $position = $parents[$position];
+            }
+            return $position;
+        };
+        $records = array_values($records);
+        foreach ($records as $position => $record) {
+            $parents[$position] = $position;
+            $day = substr($record['collected_at'] ?? '', 0, 10);
+            $hostname = strtolower(rtrim(trim($record['hostname']), '.'));
+            $keys = [$day . '|hostname:' . $hostname];
+            $ip = trim($record['ip'] ?? '');
+            if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
+                $keys[] = $day . '|ip:' . bin2hex(inet_pton($ip));
+            }
+            foreach ($keys as $key) {
+                if (isset($identities[$key])) {
+                    $parents[$find($position)] = $find($identities[$key]);
                 }
+                $identities[$key] = $position;
             }
         }
-        $rows = [];
-        $unmatched = $ambiguous = $excluded = 0;
-        foreach ($records as $record) {
-            $matches = $index[$record['hostname']] ?? [];
-            if (count($matches) !== 1) {
-                count($matches) === 0 ? ++$unmatched : ++$ambiguous;
-                continue;
-            }
-            $position = array_key_first($matches);
-            $vm = $inventory[$position];
-            if (($vm['power_state'] ?? '') !== 'poweredOn'
-                || ! in_array($vm['included_in_reports'] ?? false, [true, 1, '1', 't', 'true'], true)) {
-                ++$excluded;
-                continue;
-            }
-            if (! isset($rows[$position]) || $rows[$position]['collection']['collected_at'] < $record['collected_at']) {
-                $rows[$position] = $vm + ['collection' => $record];
+        $latest = [];
+        foreach ($records as $position => $record) {
+            $group = $find($position);
+            // Em empate de segundos, prevalece o último registro no arquivo.
+            if (! isset($latest[$group]) || ($record['collected_at'] ?? '') >= ($latest[$group]['collected_at'] ?? '')) {
+                $latest[$group] = $record;
             }
         }
-        $rows = array_values(array_filter($rows, static fn ($row) => $term === '' || mb_stripos(
-            implode(' ', [$row['vm'], $row['dns_name'] ?? '', $row['primary_ip'] ?? '', $row['collection']['hostname']]), $term
-        ) !== false));
-        usort($rows, static fn ($a, $b) => strcasecmp($a['vm'], $b['vm']));
-        return compact('rows', 'unmatched', 'ambiguous', 'excluded');
+        return array_values($latest);
+    }
+
+    /** Percentuais usam todos os hosts filtrados, antes da paginação. */
+    private function summarize(array $rows, string $field, array $statuses): array
+    {
+        $counts = array_fill_keys($statuses, 0);
+        foreach ($rows as $row) {
+            $status = $row[$field];
+            $counts[$status] = ($counts[$status] ?? 0) + 1;
+        }
+        $total = count($rows);
+        $summary = [];
+        foreach ($counts as $status => $count) {
+            $summary[$status] = ['count' => $count, 'percentage' => $total === 0 ? 0.0 : 100.0 * $count / $total];
+        }
+        return $summary;
     }
 }
